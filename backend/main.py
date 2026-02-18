@@ -11,6 +11,8 @@ app = FastAPI () # create a FastAPI object from the FastAPI class
 STUDENTS = [
     {"id": 1, "name": "Ayse"},
     {"id": 2, "name": "Memo"},
+    {"id": 15, "name": "Jason"},
+    {"id": 14, "name": "Jikan"},
 ]
 
 DAILY_FEED_BY_STUDENT_ID: dict[int, list[dict]] = {}
@@ -57,3 +59,13 @@ def create_daily_feed_entry(student_id: int, payload: DailyFeedCreateRequest):
     # 5) Respond
     return {"ok": True, "entry": entry}
 
+
+
+@app.get("/students/{student_id}/daily-feed")
+def get_daily_feed(student_id: int):
+    student_exists = any(s["id"] == student_id for s in STUDENTS)
+    if not student_exists:
+        raise HTTPException(status_code=404, detail="student not found")
+
+    entries = DAILY_FEED_BY_STUDENT_ID.get(student_id, [])
+    return {"ok": True, "student_id": student_id, "entries": entries}
