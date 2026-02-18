@@ -11,6 +11,8 @@ app = FastAPI () # create a FastAPI object from the FastAPI class
 STUDENTS = [
     {"id": 1, "name": "Ayse"},
     {"id": 2, "name": "Memo"},
+    {"id": 15, "name": "Jason"},
+    {"id": 14, "name": "Jikan"},
 ]
 
 DAILY_FEED_BY_STUDENT_ID: dict[int, list[dict]] = {}
