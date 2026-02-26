@@ -3,16 +3,22 @@
 from datetime import datetime, timezone
 import sqlite3
 
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+from auth import AuthUser, require_any_user, require_teacher
+
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from db import init_db, insert_daily_feed_entry, fetch_daily_feed_entries
 
 
-app = FastAPI () # create a FastAPI object from the FastAPI class
-
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_db()
+    print("LIFESPAN STARTUP: init_db() running")
+    yield
+    
+app = FastAPI(lifespan=lifespan)
+
 
 
 STUDENTS = [
@@ -24,12 +30,8 @@ STUDENTS = [
 ]
 
 class DailyFeedCreateRequest(BaseModel):
-    note: str
+    note: str 
 
-
-
-
-DAILY_FEED_BY_STUDENT_ID: dict[int, list[dict]] = {}
 
 
 
@@ -49,7 +51,11 @@ def assert_student_exists(student_id: int) -> None:
 
 
 @app.post("/students/{student_id}/daily-feed")
-def create_daily_feed_entry(student_id: int, payload: DailyFeedCreateRequest):
+def create_daily_feed_entry(
+    student_id: int, 
+    payload: DailyFeedCreateRequest,
+    user: AuthUser = Depends(require_teacher),
+    ):
     # 1) Validate student exists (API concern)
     assert_student_exists(student_id)
 
@@ -74,17 +80,23 @@ def create_daily_feed_entry(student_id: int, payload: DailyFeedCreateRequest):
         "type": "note",
         "note": note_clean,
         "created_at_utc": created_at,
+        "created_by_role": user.role
     }
 
     return {"ok": True, "entry": entry}
 
 
 @app.get("/students/{student_id}/daily-feed")
-def get_daily_feed(student_id: int):
+def get_daily_feed(
+    student_id: int,
+    user: AuthUser = Depends(require_any_user),
+    ):
     # 1) Validate student exists (API concern)
     assert_student_exists(student_id)
 
     # 2) Read from DB (DB concern)
     entries = fetch_daily_feed_entries(student_id=student_id)
 
-    return {"ok": True, "student_id": student_id, "entries": entries}
+    return {"ok": True, "student_id": student_id,
+            "viewer_role": user.role,
+            "entries": entries}
