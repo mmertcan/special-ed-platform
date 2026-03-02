@@ -17,20 +17,31 @@ Role = Literal["teacher", "parent", "admin"]
 @dataclass(frozen=True)
 class AuthUser:
     role: Role
+    user_id: str  # <-- NEW: stable identifier for authorization rules
 
 
 # 3) Security helper that parses: Authorization: Bearer <token>
-#    auto_error=False means: we handle missing/invalid ourselves (so we can give clean error messages).
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
 # 4) Hard-coded tokens (MVP only).
 #    Key = token string
-#    Value = user info (role)
+#    Value = user info (role + user_id)
 TOKENS: dict[str, AuthUser] = {
-    "teacher-token-123": AuthUser(role="teacher"),
-    "parent-token-123": AuthUser(role="parent"),
-    "admin-token-123": AuthUser(role="admin"),
+    "teacher-token-123": AuthUser(role="teacher", user_id="teacher_1"),
+    "parent-token-123": AuthUser(role="parent", user_id="parent_1"),
+    "admin-token-123": AuthUser(role="admin", user_id="admin_1"),
+}
+
+
+# 5) Hard-coded authorization rules (MVP only).
+#    These define WHICH students each user_id can access.
+PARENT_STUDENT_IDS: dict[str, set[int]] = {
+    "parent_1": {1, 2},       # parent_1 can only view students 1 and 2
+}
+
+TEACHER_STUDENT_IDS: dict[str, set[int]] = {
+    "teacher_1": {1, 15, 22}, # teacher_1 can view/write students 1, 15, 22
 }
 
 
@@ -39,18 +50,14 @@ def get_current_user(
 ) -> AuthUser:
     """
     Reads the Authorization header and returns an AuthUser if token is valid.
-
-    If missing/invalid -> 401 Unauthorized.
-    The dependency result will be an HTTPAuthorizationCredentials object containing the scheme and the credentials
+    Missing/invalid -> 401 Unauthorized.
     """
     if creds is None:
-        # No Authorization header at all.
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="missing Authorization header",
         )
 
-    # creds.scheme should be "Bearer" and creds.credentials is the token
     if creds.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -68,9 +75,17 @@ def get_current_user(
     return user
 
 
+def require_any_user(user: AuthUser = Depends(get_current_user)) -> AuthUser:
+    """
+    Any authenticated user is allowed (teacher/parent/admin).
+    """
+    return user
+
+
 def require_teacher(user: AuthUser = Depends(get_current_user)) -> AuthUser:
     """
-    Allows only teachers (403 if token is valid but role is not teacher).
+    Authenticated AND role must be teacher.
+    Valid token but wrong role -> 403 Forbidden.
     """
     if user.role != "teacher":
         raise HTTPException(
@@ -80,8 +95,63 @@ def require_teacher(user: AuthUser = Depends(get_current_user)) -> AuthUser:
     return user
 
 
-def require_any_user(user: AuthUser = Depends(get_current_user)) -> AuthUser:
+def _assert_user_can_access_student(*, user: AuthUser, student_id: int) -> None:
     """
-    Allows any authenticated user (teacher/parent/admin).
+    Central authorization rule:
+    - admin: access all
+    - parent: only their students
+    - teacher: only assigned students
+    If not allowed -> 403 Forbidden
     """
+    if user.role == "admin":
+        return  # admin can access anything
+
+    if user.role == "parent":
+        allowed = PARENT_STUDENT_IDS.get(user.user_id, set())
+        if student_id in allowed:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="parent not allowed to access this student",
+        )
+
+    if user.role == "teacher":
+        allowed = TEACHER_STUDENT_IDS.get(user.user_id, set())
+        if student_id in allowed:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="teacher not allowed to access this student",
+        )
+
+    # Should be unreachable because Role is a Literal, but it's good defensive code.
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="role not allowed",
+    )
+
+
+def require_can_view_student(
+    student_id: int,
+    user: AuthUser = Depends(require_any_user),
+) -> AuthUser:
+    """
+    Dependency for endpoints that VIEW a student's data.
+    FastAPI auto-injects student_id from the path.
+    """
+    _assert_user_can_access_student(user=user, student_id=student_id)
+    return user
+
+
+def require_can_write_student(
+    student_id: int,
+    user: AuthUser = Depends(require_teacher),
+) -> AuthUser:
+    """
+    Dependency for endpoints that MODIFY a student's data.
+    Rule:
+    - must be a teacher (require_teacher)
+    - AND must be assigned to that student
+    """
+    _assert_user_can_access_student(user=user, student_id=student_id)
     return user
