@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import sqlite3
 
 from contextlib import asynccontextmanager
-from auth import AuthUser, require_any_user, require_teacher
+from auth import AuthUser, require_can_view_student, require_can_write_student
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
@@ -54,7 +54,7 @@ def assert_student_exists(student_id: int) -> None:
 def create_daily_feed_entry(
     student_id: int, 
     payload: DailyFeedCreateRequest,
-    user: AuthUser = Depends(require_teacher),
+    user: AuthUser = Depends(require_can_write_student),
     ):
     # 1) Validate student exists (API concern)
     assert_student_exists(student_id)
@@ -89,7 +89,7 @@ def create_daily_feed_entry(
 @app.get("/students/{student_id}/daily-feed")
 def get_daily_feed(
     student_id: int,
-    user: AuthUser = Depends(require_any_user),
+    user: AuthUser = Depends(require_can_view_student),
     ):
     # 1) Validate student exists (API concern)
     assert_student_exists(student_id)
