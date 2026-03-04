@@ -1,14 +1,19 @@
 # backend/main.py
 
 from datetime import datetime, timezone
-import sqlite3
-
 from contextlib import asynccontextmanager
-from auth import AuthUser, require_can_view_student, require_can_write_student
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from db import init_db, insert_daily_feed_entry, fetch_daily_feed_entries
+
+from auth import AuthUser, require_can_view_student, require_can_write_student
+from db import (
+    init_db,
+    insert_daily_feed_entry,
+    fetch_daily_feed_entries,
+    fetch_students,
+    student_exists,
+)
 
 
 @asynccontextmanager
@@ -16,47 +21,37 @@ async def lifespan(app: FastAPI):
     init_db()
     print("LIFESPAN STARTUP: init_db() running")
     yield
-    
+
+
 app = FastAPI(lifespan=lifespan)
 
 
-
-STUDENTS = [
-    {"id": 1, "name": "Ayse"},
-    {"id": 2, "name": "Memo"},
-    {"id": 15, "name": "Jason"},
-    {"id": 14, "name": "Jikan"},
-    {"id": 22, "name": "Tobby"},
-]
-
 class DailyFeedCreateRequest(BaseModel):
-    note: str 
-
-
+    note: str
 
 
 @app.get("/health")
 def health_check():
-    return {"status":"ok", "service":"special-ed-platform-backend"}
-    
+    return {"status": "ok", "service": "special-ed-platform-backend"}
+
+
 @app.get("/students")
 def list_students():
-    return STUDENTS
+    return fetch_students()
 
 
 def assert_student_exists(student_id: int) -> None:
-    student_exists = any(s["id"] == student_id for s in STUDENTS)
-    if not student_exists:
+    if not student_exists(student_id=student_id):
         raise HTTPException(status_code=404, detail="student not found")
 
 
 @app.post("/students/{student_id}/daily-feed")
-def create_daily_feed_entry(
-    student_id: int, 
+def create_daily_feed_entry_route(
+    student_id: int,
     payload: DailyFeedCreateRequest,
     user: AuthUser = Depends(require_can_write_student),
-    ):
-    # 1) Validate student exists (API concern)
+):
+    # 1) Validate student exists (API boundary concern)
     assert_student_exists(student_id)
 
     # 2) Validate note (API concern)
@@ -80,7 +75,8 @@ def create_daily_feed_entry(
         "type": "note",
         "note": note_clean,
         "created_at_utc": created_at,
-        "created_by_role": user.role
+        "created_by_role": user.role,
+        "created_by_user_id": user.user_id,
     }
 
     return {"ok": True, "entry": entry}
@@ -90,13 +86,17 @@ def create_daily_feed_entry(
 def get_daily_feed(
     student_id: int,
     user: AuthUser = Depends(require_can_view_student),
-    ):
-    # 1) Validate student exists (API concern)
+):
+    # 1) Validate student exists (API boundary concern)
     assert_student_exists(student_id)
 
     # 2) Read from DB (DB concern)
     entries = fetch_daily_feed_entries(student_id=student_id)
 
-    return {"ok": True, "student_id": student_id,
-            "viewer_role": user.role,
-            "entries": entries}
+    return {
+        "ok": True,
+        "student_id": student_id,
+        "viewer_role": user.role,
+        "viewer_user_id": user.user_id,
+        "entries": entries,
+    }
