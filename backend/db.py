@@ -268,6 +268,52 @@ def fetch_user_by_token(*, token: str) -> Optional[dict[str, Any]]:
         conn.close()
 
 
+def fetch_user_by_id(*,user_id: str) -> Optional[dict[str,Any]]:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT user_id, role
+            FROM users
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def assign_parent_to_student(*, parent_user_id: str, student_id: int) -> None:
+    conn = get_db_connection()
+
+    try:
+        conn.execute(
+        """
+        INSERT INTO parent_students (parent_user_id, student_id)
+        VALUES (?, ?)
+        """,
+        (parent_user_id, student_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def assign_teacher_to_student(*,teacher_user_id: str, student_id: int) -> None:
+    conn = get_db_connection ()
+    try:
+        conn.execute(
+            """
+            INSERT INTO teacher_students (teacher_user_id, student_id)
+            VALUES (?,?)
+            """,
+            (teacher_user_id, student_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
 def parent_has_student(*, parent_user_id: str, student_id: int) -> bool:
     conn = get_db_connection()
     try:
