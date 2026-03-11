@@ -69,6 +69,14 @@ def require_teacher(user: AuthUser = Depends(get_current_user)) -> AuthUser:
     return user
 
 
+def require_admin(user: AuthUser = Depends(get_current_user)) -> AuthUser:
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin role required",
+        )
+    return user
+
 def _assert_user_can_access_student(*, user: AuthUser, student_id: int) -> None:
     """
     Authorization:
