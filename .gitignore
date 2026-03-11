@@ -5,3 +5,7 @@ __pycache__/
 *.pyc
 .vscode/
 *.db
+venv/
+**/venv/
+.venv/
+**/.venv/
