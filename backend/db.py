@@ -8,14 +8,12 @@ from typing import Any, Optional
 DB_PATH = "app.db"
 
 
-def get_db_connection() -> sqlite3.Connection:
-    """
-    Creates and returns a SQLite connection.
-    - row_factory makes rows behave like dictionaries (sqlite3.Row).
-    """
+def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
 
 
 def init_db() -> None:
@@ -27,11 +25,28 @@ def init_db() -> None:
     conn = get_db_connection()
     try:
         # --- Core tables ---
-        conn.execute(
+        conn.execute( # USERS
             """
             CREATE TABLE IF NOT EXISTS users (
-                user_id TEXT PRIMARY KEY,
-                role TEXT NOT NULL CHECK (role IN ('teacher','parent','admin'))
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                role TEXT NOT NULL CHECK (role IN ('teacher','parent','admin')),
+                full_name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at_utc TEXT NOT NULL
+
+            )
+            """
+        )
+
+        conn.execute( #  STUDENTS
+        """ 
+        CREATE TABLE students (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        full_name TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at_utc TEXT NOT NULL
             )
             """
         )
@@ -46,50 +61,120 @@ def init_db() -> None:
             """
         )
 
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS students (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL
-            )
-            """
-        )
+       
 
         # --- Relationship tables (authorization mappings) ---
-        conn.execute(
+        # STUDENT PARENTS RELATIONSHIPS (It was parent_students before)
+        conn.execute( 
             """
-            CREATE TABLE IF NOT EXISTS parent_students (
-                parent_user_id TEXT NOT NULL,
-                student_id INTEGER NOT NULL,
-                PRIMARY KEY (parent_user_id, student_id),
-                FOREIGN KEY (parent_user_id) REFERENCES users(user_id),
-                FOREIGN KEY (student_id) REFERENCES students(id)
+            CREATE TABLE student_parents (
+            student_id INTEGER NOT NULL,
+            parent_user_id INTEGER NOT NULL,
+            relationship_label TEXT,
+            created_at_utc TEXT NOT NULL,
+            PRIMARY KEY (student_id, parent_user_id),
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            FOREIGN KEY (parent_user_id) REFERENCES users(id)
+            )
+
+            """
+        )
+
+        # STUDENT TEACHER RELATIONSHIPS was teacher_students before
+        conn.execute(  
+            """
+            CREATE TABLE student_teachers (
+            student_id INTEGER NOT NULL,
+            teacher_user_id INTEGER NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            PRIMARY KEY (student_id, teacher_user_id),
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            FOREIGN KEY (teacher_user_id) REFERENCES users(id)
             )
             """
         )
 
-        conn.execute(
+        # USER SESSIONS (New table to replace api_tokens)
+        conn.execute( 
             """
-            CREATE TABLE IF NOT EXISTS teacher_students (
-                teacher_user_id TEXT NOT NULL,
-                student_id INTEGER NOT NULL,
-                PRIMARY KEY (teacher_user_id, student_id),
-                FOREIGN KEY (teacher_user_id) REFERENCES users(user_id),
-                FOREIGN KEY (student_id) REFERENCES students(id)
+            CREATE TABLE user_sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            expires_at_utc TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
             )
             """
         )
 
-        # --- Existing daily feed table (keep as-is) ---
+        # --- DAILY FEED POSTS - It was daily feed before
         conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS daily_feed_entries (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                student_id INTEGER NOT NULL,
-                type TEXT NOT NULL,
-                note TEXT,
-                created_at_utc TEXT NOT NULL
+            CREATE TABLE daily_feed_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            author_user_id INTEGER NOT NULL,
+            body TEXT NOT NULL,
+            posted_at_utc TEXT NOT NULL,
+            updated_at_utc TEXT,
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            FOREIGN KEY (author_user_id) REFERENCES users(id)
             )
+            """
+        )
+        
+        # --- DAILY FEED MEDIA - NEW TABLE
+        conn.execute(
+            """
+            CREATE TABLE daily_feed_media (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            storage_key TEXT NOT NULL,
+            media_type TEXT NOT NULL CHECK (media_type IN ('image', 'video')),
+            created_at_utc TEXT NOT NULL,
+            FOREIGN KEY (post_id) REFERENCES daily_feed_posts(id)
+            )
+
+            """
+        )
+
+        # -- WEEKLY HOMEWORK - NEW TABLE
+        conn.execute( 
+            """
+            CREATE TABLE weekly_homework (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            author_user_id INTEGER NOT NULL,
+            week_start_date TEXT NOT NULL,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            updated_at_utc TEXT,
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            FOREIGN KEY (author_user_id) REFERENCES users(id)
+            )
+
+            """
+        )
+
+        # -- SCHEDULE ENTRIES - NEW TABLE
+        conn.execute( 
+            """
+            CREATE TABLE schedule_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            teacher_user_id INTEGER,
+            entry_date TEXT NOT NULL,
+            start_time TEXT NOT NULL,
+            end_time TEXT NOT NULL,
+            lesson_type TEXT NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            updated_at_utc TEXT,
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            FOREIGN KEY (teacher_user_id) REFERENCES users(id)
+
+            )
+
             """
         )
 
