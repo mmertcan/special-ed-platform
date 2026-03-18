@@ -1,11 +1,13 @@
 # Tasks
 
 ## Current
-- [ ] Update the dummy data
+- [x] Update the data schamas
+- [x] Update the dummy data
 
 
 ## Next
-- [ ] Daily feed image upload
+- [ ] Update the fetch and insert_daily_feed_entry functions
+* - That also impacts auth.py
 
 
 ## Later
