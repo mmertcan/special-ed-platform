@@ -9,3 +9,4 @@ venv/
 **/venv/
 .venv/
 **/.venv/
+dev_journal_private.md
