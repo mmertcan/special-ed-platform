@@ -17,7 +17,7 @@ Role = Literal["teacher", "parent", "admin"]
 @dataclass(frozen=True)
 class AuthUser:
     role: Role
-    user_id: str
+    user_id: int
 
 
 bearer_scheme = HTTPBearer(auto_error=False)

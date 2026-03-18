@@ -14,7 +14,7 @@ from auth import (
 )
 from db import (
     init_db,
-    insert_daily_feed_entry,
+    insert_daily_feed_posts,
     fetch_daily_feed_entries,
     fetch_students,
     student_exists,
@@ -37,16 +37,16 @@ app = FastAPI(lifespan=lifespan)
 
 
 class DailyFeedCreateRequest(BaseModel):
-    note: str
+    body: str
 
 
 class AssignParentRequest(BaseModel):
-    parent_user_id: str
+    parent_user_id: int
     student_id: int
 
 
 class AssignTeacherRequest(BaseModel):
-    teacher_user_id: str
+    teacher_user_id: int
     student_id: int
 
 
@@ -75,31 +75,31 @@ def create_daily_feed_entry_route(
     assert_student_exists(student_id)
 
     # 2) Validate note (API concern)
-    note_clean = payload.note.strip()
-    if not note_clean:
+    body_clean = payload.body.strip()
+    if not body_clean:
         raise HTTPException(status_code=400, detail="note cannot be empty")
 
-    created_at = datetime.now(timezone.utc).isoformat()
+    posted_at = datetime.now(timezone.utc).isoformat()
 
-    # 3) Write to DB (DB concern)
-    new_id = insert_daily_feed_entry(
+     # 3) Write to DB
+    new_id = insert_daily_feed_posts(
         student_id=student_id,
-        entry_type="note",
-        note=note_clean,
-        created_at_utc=created_at,
+        author_user_id=user.user_id,
+        body=body_clean,
+        posted_at_utc=posted_at,
     )
 
-    entry = {
+    post = {
         "id": new_id,
         "student_id": student_id,
-        "type": "note",
-        "note": note_clean,
-        "created_at_utc": created_at,
-        "created_by_role": user.role,
-        "created_by_user_id": user.user_id,
+        "author_user_id": user.user_id,
+        "author_role": user.role,
+        "body": body_clean,
+        "posted_at_utc": posted_at,
+        "updated_at_utc": None,
     }
 
-    return {"ok": True, "entry": entry}
+    return {"ok": True, "post": post}
 
 
 @app.get("/students/{student_id}/daily-feed")
@@ -127,7 +127,7 @@ def assign_parent(
     payload: AssignParentRequest,
     user: AuthUser = Depends(require_admin),
 ):
-    parent = fetch_user_by_id(user_id=payload.parent_user_id)
+    parent = fetch_user_by_id(id=payload.parent_user_id)
     if parent is None:
         raise HTTPException(status_code=404, detail="parent user not found")
 
@@ -160,7 +160,7 @@ def assign_teacher(
     payload: AssignTeacherRequest,
     user: AuthUser = Depends(require_admin),
 ):
-    teacher = fetch_user_by_id(user_id=payload.teacher_user_id)
+    teacher = fetch_user_by_id(id=payload.teacher_user_id)
     if teacher is None:
         raise HTTPException(status_code=404, detail="teacher user not found")
 
