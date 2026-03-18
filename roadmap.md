@@ -9,6 +9,8 @@
 ## Phase 2 — Admin operations
 - [x] Teacher assignment API
 - [x] Parent assignment API
+- [ ] Login/logout endpoint
+- [ ] Me endpoint to restore session and route by role.
 - [ ] Student management
 - [ ] Admin web dashboard
 
@@ -26,3 +28,19 @@
 ## Phase 5 — Future AI features
 - [ ] AI lesson summaries
 - [ ] Homework assistant
+
+## Immediate next steps — Fastest MVP path
+- [ ] POST /auth/login
+- [ ] POST /auth/logout
+- [ ] GET /me
+- [ ] GET /me/students
+- [ ] POST /admin/users
+- [ ] GET /admin/users
+- [ ] POST /admin/students
+- [ ] GET /admin/students
+- [ ] Admin users web page
+- [ ] Admin students web page
+- [ ] Admin assignments web page
+- [ ] Teacher students web page
+- [ ] Teacher daily feed composer
+- [ ] Parent feed web page

@@ -1,7 +1,7 @@
 # Tasks
 
 ## Current
-- [ ] Update the dummy data
+- [ ] Create POST /admin/students endpoint
 
 
 ## Next
