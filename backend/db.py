@@ -505,6 +505,39 @@ def fetch_daily_feed_entries(*, student_id: int) -> list[dict[str, Any]]:
 # NEW: Users / tokens / students helpers
 # -------------------------
 
+def insert_student(
+    *,
+    full_name: str,
+    is_active: bool,
+    created_at_utc: str,
+) -> dict[str, Any]:
+    conn = get_db_connection()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO students (
+                full_name,
+                is_active,
+                created_at_utc
+            )
+            VALUES (?, ?, ?)
+            """,
+            (full_name, int(is_active), created_at_utc),
+        )
+        conn.commit()
+        new_id = cur.lastrowid
+        if new_id is None:
+            raise RuntimeError("Insert succeeded but lastrowid is None (unexpected)")
+
+        return {
+            "id": int(new_id),
+            "full_name": full_name,
+            "is_active": is_active,
+            "created_at_utc": created_at_utc,
+        }
+    finally:
+        conn.close()
+
 def fetch_students() -> list[dict[str, Any]]:
     conn = get_db_connection()
     try:

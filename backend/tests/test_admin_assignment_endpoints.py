@@ -82,6 +82,52 @@ def test_assign_parent_duplicate_assignment_returns_409(client: TestClient):
     assert response.json()["detail"] == "parent already assigned"
 
 
+def test_admin_can_create_student(client: TestClient):
+    response = client.post(
+        "/admin/students",
+        json={"full_name": "  Ayse Yilmaz  ", "is_active": False},
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 201
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["student"]["id"] == 6
+    assert payload["student"]["full_name"] == "Ayse Yilmaz"
+    assert payload["student"]["is_active"] is False
+    assert payload["student"]["created_at_utc"].endswith("+00:00")
+
+
+def test_create_student_defaults_is_active_to_true(client: TestClient):
+    response = client.post(
+        "/admin/students",
+        json={"full_name": "Ayse Yilmaz"},
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 201
+    assert response.json()["student"]["is_active"] is True
+
+
+def test_create_student_empty_name_returns_400(client: TestClient):
+    response = client.post(
+        "/admin/students",
+        json={"full_name": "   "},
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "full_name cannot be empty"
+
+
+def test_create_student_teacher_token_returns_403(client: TestClient):
+    response = client.post(
+        "/admin/students",
+        json={"full_name": "Ayse Yilmaz"},
+        headers=auth_header("teacher-token-123"),
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "admin role required"
+
+
 def test_teacher_can_create_daily_feed_post(client: TestClient):
     response = client.post(
         "/students/1/daily-feed",
