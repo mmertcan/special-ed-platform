@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
 from auth import (
@@ -15,6 +15,7 @@ from auth import (
 from db import (
     init_db,
     insert_daily_feed_posts,
+    insert_student,
     fetch_daily_feed_entries,
     fetch_students,
     student_exists,
@@ -44,6 +45,9 @@ class AssignParentRequest(BaseModel):
     parent_user_id: int
     student_id: int
 
+class CreateStudentRequest(BaseModel):
+    full_name: str
+    is_active: bool = True
 
 class AssignTeacherRequest(BaseModel):
     teacher_user_id: int
@@ -120,6 +124,24 @@ def get_daily_feed(
         "viewer_user_id": user.user_id,
         "entries": entries,
     }
+
+@app.post("/admin/students", status_code=status.HTTP_201_CREATED)
+def create_student(
+    payload: CreateStudentRequest,
+    user: AuthUser = Depends(require_admin),
+):
+    full_name_clean = payload.full_name.strip()
+    if not full_name_clean:
+        raise HTTPException(status_code=400, detail="full_name cannot be empty")
+
+    created_at_utc = datetime.now(timezone.utc).isoformat()
+    student = insert_student(
+        full_name=full_name_clean,
+        is_active=payload.is_active,
+        created_at_utc=created_at_utc,
+    )
+
+    return {"ok": True, "student": student}
 
 
 @app.post("/admin/assign-parent")
