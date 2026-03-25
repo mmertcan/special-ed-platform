@@ -538,6 +538,64 @@ def insert_student(
     finally:
         conn.close()
 
+def insert_user(
+    *,
+    full_name: str,
+    is_active: bool,
+    role: str,
+    email: str,
+    password_hash: str,
+    created_at_utc: str
+) -> dict[str, Any]:
+    conn = get_db_connection()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO users (
+                role,
+                full_name,
+                email,
+                password_hash,
+                is_active,
+                created_at_utc
+            )
+            VALUES (?, ?, ?,?, ?, ?)
+            """,
+            (role, full_name, email, password_hash, int(is_active), created_at_utc),
+        )
+        conn.commit()
+        new_id = cur.lastrowid
+        if new_id is None:
+            raise RuntimeError("Insert succeeded but lastrowid is None (unexpected)")
+
+        return {
+            "id": int(new_id),
+            "role": role,
+            "full_name": full_name,
+            "email": email,
+            "is_active": is_active,
+            "created_at_utc": created_at_utc,
+        }
+    finally:
+        conn.close()
+
+
+def user_email_exists(*, email: str) -> bool:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT 1 AS ok
+            FROM users
+            WHERE lower(email) = lower(?)
+            """,
+            (email,),
+        ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
 def fetch_students() -> list[dict[str, Any]]:
     conn = get_db_connection()
     try:

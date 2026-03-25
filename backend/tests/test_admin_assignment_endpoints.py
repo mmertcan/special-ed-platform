@@ -128,6 +128,178 @@ def test_create_student_teacher_token_returns_403(client: TestClient):
     assert response.json()["detail"] == "admin role required"
 
 
+def test_admin_can_create_user(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "teacher",
+            "full_name": "  Dil ve Konusma Terapisti  ",
+            "email": " Therapist@Example.com ",
+            "password": "secure-password-123",
+            "is_active": False,
+        },
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 201
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["user"]["id"] == 4
+    assert payload["user"]["role"] == "teacher"
+    assert payload["user"]["full_name"] == "Dil ve Konusma Terapisti"
+    assert payload["user"]["email"] == "therapist@example.com"
+    assert payload["user"]["is_active"] is False
+    assert payload["user"]["created_at_utc"].endswith("+00:00")
+    assert "password_hash" not in payload["user"]
+
+
+def test_create_user_defaults_is_active_to_true(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "teacher",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "therapist@example.com",
+            "password": "secure-password-123",
+        },
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 201
+    assert response.json()["user"]["is_active"] is True
+
+
+def test_create_user_empty_name_returns_400(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "teacher",
+            "full_name": "   ",
+            "email": "therapist@example.com",
+            "password": "secure-password-123",
+        },
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "full_name cannot be empty"
+
+
+def test_create_user_empty_email_returns_400(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "teacher",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "   ",
+            "password": "secure-password-123",
+        },
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "email cannot be empty"
+
+
+def test_create_user_empty_password_returns_400(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "teacher",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "therapist@example.com",
+            "password": "   ",
+        },
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "password cannot be empty"
+
+
+def test_create_user_invalid_role_returns_400(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "student",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "therapist@example.com",
+            "password": "secure-password-123",
+        },
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "role must be one of admin, teacher, parent"
+
+
+def test_create_user_invalid_email_format_returns_400(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "teacher",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "not-an-email",
+            "password": "secure-password-123",
+        },
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "email format is invalid"
+
+
+def test_create_user_duplicate_email_returns_409_case_insensitive(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "teacher",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "ADMIN@EXAMPLE.COM",
+            "password": "secure-password-123",
+        },
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "email already exists"
+
+
+def test_create_user_teacher_token_returns_403(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "teacher",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "therapist@example.com",
+            "password": "secure-password-123",
+        },
+        headers=auth_header("teacher-token-123"),
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "admin role required"
+
+
+def test_create_user_stores_hashed_password(client: TestClient):
+    response = client.post(
+        "/admin/users",
+        json={
+            "role": "teacher",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "therapist@example.com",
+            "password": "secure-password-123",
+        },
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 201
+
+    conn = db.get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT password_hash FROM users WHERE email = ?",
+            ("therapist@example.com",),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    assert row is not None
+    assert row["password_hash"] != "secure-password-123"
+    assert row["password_hash"].startswith("pbkdf2_sha256$")
+
+
 def test_teacher_can_create_daily_feed_post(client: TestClient):
     response = client.post(
         "/students/1/daily-feed",
