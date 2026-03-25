@@ -1,8 +1,12 @@
 # backend/main.py
 
+import hashlib
+import re
+import secrets
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
+import sqlite3
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel
 
@@ -16,6 +20,7 @@ from db import (
     init_db,
     insert_daily_feed_posts,
     insert_student,
+    insert_user,
     fetch_daily_feed_entries,
     fetch_students,
     student_exists,
@@ -24,6 +29,7 @@ from db import (
     assign_teacher_to_student,
     parent_has_student,
     teacher_has_student,
+    user_email_exists,
 )
 
 
@@ -36,6 +42,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+VALID_USER_ROLES = {"admin", "teacher", "parent"}
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+PBKDF2_ITERATIONS = 100_000
+
 
 class DailyFeedCreateRequest(BaseModel):
     body: str
@@ -47,6 +57,13 @@ class AssignParentRequest(BaseModel):
 
 class CreateStudentRequest(BaseModel):
     full_name: str
+    is_active: bool = True
+
+class CreateUserRequest(BaseModel):
+    full_name: str
+    role: str
+    email: str
+    password: str
     is_active: bool = True
 
 class AssignTeacherRequest(BaseModel):
@@ -67,6 +84,17 @@ def list_students():
 def assert_student_exists(student_id: int) -> None:
     if not student_exists(student_id=student_id):
         raise HTTPException(status_code=404, detail="student not found")
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        bytes.fromhex(salt),
+        PBKDF2_ITERATIONS,
+    )
+    return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${salt}${digest.hex()}"
 
 
 @app.post("/students/{student_id}/daily-feed")
@@ -143,6 +171,51 @@ def create_student(
 
     return {"ok": True, "student": student}
 
+
+@app.post("/admin/users", status_code=status.HTTP_201_CREATED)
+def create_user(
+    payload: CreateUserRequest,
+    user: AuthUser = Depends(require_admin),
+):
+    if payload.role not in VALID_USER_ROLES:
+        raise HTTPException(
+            status_code=400,
+            detail="role must be one of admin, teacher, parent",
+        )
+
+    full_name_clean = payload.full_name.strip()
+    if not full_name_clean:
+        raise HTTPException(status_code=400, detail="full_name cannot be empty")
+
+    email_clean = payload.email.strip().casefold()
+    if not email_clean:
+        raise HTTPException(status_code=400, detail="email cannot be empty")
+    if not EMAIL_REGEX.fullmatch(email_clean):
+        raise HTTPException(status_code=400, detail="email format is invalid")
+    if user_email_exists(email=email_clean):
+        raise HTTPException(status_code=409, detail="email already exists")
+
+    password_clean = payload.password.strip()
+    if not password_clean:
+        raise HTTPException(status_code=400, detail="password cannot be empty")
+
+    created_at_utc = datetime.now(timezone.utc).isoformat()
+    try:
+        new_user = insert_user(
+            role=payload.role,
+            full_name=full_name_clean,
+            is_active=payload.is_active,
+            email=email_clean,
+            password_hash=hash_password(password_clean),
+            created_at_utc=created_at_utc,
+        )
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="email already exists") from None
+
+    return {
+        "ok": True,
+        "user": new_user,
+    }
 
 @app.post("/admin/assign-parent")
 def assign_parent(
