@@ -569,9 +569,6 @@ def create_new_session (
     finally:
         conn.close()
 
-    
-
-
 def insert_user(
     *,
     full_name: str,
@@ -664,6 +661,21 @@ def fetch_user_by_token(*, token: str) -> Optional[dict[str, Any]]:
             (token,),
         ).fetchone()
         return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def delete_session_by_token(*, token: str) -> None:
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            """
+            DELETE FROM user_sessions
+            WHERE token = ?
+            """,
+            (token,),
+        )
+        conn.commit()
     finally:
         conn.close()
 

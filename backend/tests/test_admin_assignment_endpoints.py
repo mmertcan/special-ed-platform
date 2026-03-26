@@ -429,6 +429,63 @@ def test_login_inactive_user_returns_403(client: TestClient):
     assert response.json()["detail"] == "user account is inactive"
 
 
+def test_logout_deletes_current_session(client: TestClient):
+    login_create_response = create_user_via_admin(
+        client,
+        email="logout-teacher@example.com",
+        password="known-password-123",
+    )
+    assert login_create_response.status_code == 201
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": "logout-teacher@example.com",
+            "password": "known-password-123",
+        },
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["token"]
+
+    response = client.post(
+        "/auth/logout",
+        json={},
+        headers=auth_header(token),
+    )
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+
+    conn = db.get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT 1 AS ok FROM user_sessions WHERE token = ?",
+            (token,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    assert row is None
+
+
+def test_logout_missing_authorization_header_returns_401(client: TestClient):
+    response = client.post(
+        "/auth/logout",
+        json={},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "missing Authorization header"
+
+
+def test_logout_invalid_token_returns_401(client: TestClient):
+    response = client.post(
+        "/auth/logout",
+        json={},
+        headers=auth_header("wrong-token"),
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid token"
+
+
 def test_teacher_can_create_daily_feed_post(client: TestClient):
     response = client.post(
         "/students/1/daily-feed",
