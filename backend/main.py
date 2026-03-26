@@ -3,7 +3,8 @@
 import hashlib
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
 from contextlib import asynccontextmanager
 
 import sqlite3
@@ -30,6 +31,8 @@ from db import (
     parent_has_student,
     teacher_has_student,
     user_email_exists,
+    create_new_session,
+    fetch_user_by_email,
 )
 
 
@@ -70,6 +73,9 @@ class AssignTeacherRequest(BaseModel):
     teacher_user_id: int
     student_id: int
 
+class CreateLoginRequest(BaseModel):
+    email: str
+    password: str
 
 @app.get("/health")
 def health_check():
@@ -95,6 +101,35 @@ def hash_password(password: str) -> str:
         PBKDF2_ITERATIONS,
     )
     return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${salt}${digest.hex()}"
+
+
+def verify_password(plain_password: str, stored_hash: str) -> bool:
+    try:
+        algorithm, iterations_text, salt_hex, stored_digest = stored_hash.split("$", 3)
+    except ValueError:
+        return False
+
+    if algorithm != "pbkdf2_sha256":
+        return False
+
+    try:
+        iterations = int(iterations_text)
+        salt_bytes = bytes.fromhex(salt_hex)
+    except ValueError:
+        return False
+
+    computed_digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        plain_password.encode("utf-8"),
+        salt_bytes,
+        iterations,
+    ).hex()
+
+    return secrets.compare_digest(computed_digest, stored_digest)
+
+
+def generate_random_token():
+    return secrets.token_urlsafe(32)
 
 
 @app.post("/students/{student_id}/daily-feed")
@@ -216,6 +251,61 @@ def create_user(
         "ok": True,
         "user": new_user,
     }
+
+@app.post("/auth/login", status_code=status.HTTP_200_OK)
+def create_login(
+    payload: CreateLoginRequest,
+):
+    email_clean = payload.email.strip().casefold()
+    if not email_clean:
+        raise HTTPException(status_code=400, detail="email is required")
+
+    password_clean = payload.password.strip()
+    if not password_clean:
+        raise HTTPException(status_code=400, detail="password is required")
+
+    session_user = fetch_user_by_email(email=email_clean)
+    if session_user is None:
+        raise HTTPException(status_code=401, detail="invalid email or password")
+
+    if not verify_password(
+        plain_password=password_clean,
+        stored_hash=session_user["password_hash"],
+    ):
+        raise HTTPException(status_code=401, detail="invalid email or password")
+
+    if not session_user["is_active"]:
+        raise HTTPException(status_code=403, detail="user account is inactive")
+
+    new_token = generate_random_token()
+    SESSION_DURATION_DAYS = 21
+    created_at_dt = datetime.now(timezone.utc)
+    created_at_utc = created_at_dt.isoformat()
+    expires_at = (created_at_dt + timedelta(days=SESSION_DURATION_DAYS)).isoformat()
+
+    create_new_session(
+        token=new_token,
+        user_id=session_user["id"],
+        created_at_utc=created_at_utc,
+        expires_at_utc=expires_at,
+    )
+
+    response_user = {
+        "id": session_user["id"],
+        "role": session_user["role"],
+        "full_name": session_user["full_name"],
+        "email": session_user["email"],
+        "is_active": bool(session_user["is_active"]),
+    }
+
+    return {
+        "ok": True,
+        "token": new_token,
+        "expires_at_utc": expires_at,
+        "user": response_user,
+    }
+
+
 
 @app.post("/admin/assign-parent")
 def assign_parent(

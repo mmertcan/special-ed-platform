@@ -13,6 +13,28 @@ def auth_header(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def create_user_via_admin(
+    client: TestClient,
+    *,
+    role: str = "teacher",
+    full_name: str = "Dil ve Konusma Terapisti",
+    email: str = "therapist@example.com",
+    password: str = "secure-password-123",
+    is_active: bool = True,
+):
+    return client.post(
+        "/admin/users",
+        json={
+            "role": role,
+            "full_name": full_name,
+            "email": email,
+            "password": password,
+            "is_active": is_active,
+        },
+        headers=auth_header("admin-token-123"),
+    )
+
+
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     test_db_path = tmp_path / "test_app.db"
@@ -274,16 +296,7 @@ def test_create_user_teacher_token_returns_403(client: TestClient):
 
 
 def test_create_user_stores_hashed_password(client: TestClient):
-    response = client.post(
-        "/admin/users",
-        json={
-            "role": "teacher",
-            "full_name": "Dil ve Konusma Terapisti",
-            "email": "therapist@example.com",
-            "password": "secure-password-123",
-        },
-        headers=auth_header("admin-token-123"),
-    )
+    response = create_user_via_admin(client)
     assert response.status_code == 201
 
     conn = db.get_db_connection()
@@ -298,6 +311,122 @@ def test_create_user_stores_hashed_password(client: TestClient):
     assert row is not None
     assert row["password_hash"] != "secure-password-123"
     assert row["password_hash"].startswith("pbkdf2_sha256$")
+
+
+def test_login_returns_session_for_valid_credentials(client: TestClient):
+    create_response = create_user_via_admin(
+        client,
+        email="login-teacher@example.com",
+        password="known-password-123",
+    )
+    assert create_response.status_code == 201
+
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "LOGIN-TEACHER@EXAMPLE.COM",
+            "password": "known-password-123",
+        },
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert isinstance(payload["token"], str)
+    assert payload["token"] != "teacher-token-123"
+    assert payload["expires_at_utc"].endswith("+00:00")
+    assert payload["user"] == {
+        "id": 4,
+        "role": "teacher",
+        "full_name": "Dil ve Konusma Terapisti",
+        "email": "login-teacher@example.com",
+        "is_active": True,
+    }
+    assert "password_hash" not in payload["user"]
+
+    conn = db.get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT token, user_id, created_at_utc, expires_at_utc
+            FROM user_sessions
+            WHERE token = ?
+            """,
+            (payload["token"],),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    assert row is not None
+    assert row["user_id"] == 4
+    assert row["created_at_utc"].endswith("+00:00")
+    assert row["expires_at_utc"] == payload["expires_at_utc"]
+
+
+def test_login_missing_email_returns_400(client: TestClient):
+    response = client.post(
+        "/auth/login",
+        json={"email": "   ", "password": "known-password-123"},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "email is required"
+
+
+def test_login_missing_password_returns_400(client: TestClient):
+    response = client.post(
+        "/auth/login",
+        json={"email": "teacher@example.com", "password": "   "},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "password is required"
+
+
+def test_login_unknown_email_returns_401(client: TestClient):
+    response = client.post(
+        "/auth/login",
+        json={"email": "nobody@example.com", "password": "known-password-123"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid email or password"
+
+
+def test_login_wrong_password_returns_401(client: TestClient):
+    create_response = create_user_via_admin(
+        client,
+        email="wrong-password@example.com",
+        password="known-password-123",
+    )
+    assert create_response.status_code == 201
+
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "wrong-password@example.com",
+            "password": "wrong-password",
+        },
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid email or password"
+
+
+def test_login_inactive_user_returns_403(client: TestClient):
+    create_response = create_user_via_admin(
+        client,
+        email="inactive-teacher@example.com",
+        password="known-password-123",
+        is_active=False,
+    )
+    assert create_response.status_code == 201
+
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "inactive-teacher@example.com",
+            "password": "known-password-123",
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "user account is inactive"
 
 
 def test_teacher_can_create_daily_feed_post(client: TestClient):
