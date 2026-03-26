@@ -538,6 +538,40 @@ def insert_student(
     finally:
         conn.close()
 
+def create_new_session (
+        *,
+        token: str,
+        user_id: int,
+        created_at_utc: str,
+        expires_at_utc: str,
+) -> dict[str, Any]:
+    conn = get_db_connection()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO user_sessions (
+            token,
+            user_id,
+            created_at_utc,
+            expires_at_utc
+            )   
+            VALUES (?, ?, ?,?)
+            """,
+            (token,user_id,created_at_utc,expires_at_utc)
+        )
+        conn.commit()
+        return {
+            "token": token,
+            "user_id": user_id,
+            "created_at_utc": created_at_utc,
+            "expires_at_utc": expires_at_utc
+        }
+    finally:
+        conn.close()
+
+    
+
+
 def insert_user(
     *,
     full_name: str,
@@ -628,6 +662,22 @@ def fetch_user_by_token(*, token: str) -> Optional[dict[str, Any]]:
             WHERE s.token = ?
             """,
             (token,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def fetch_user_by_email (*, email: str) -> Optional[dict[str,Any]]:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT id, role, full_name, email, password_hash, is_active, created_at_utc
+            FROM users
+            WHERE lower(email) = lower(?)
+            """,
+            (email,),
         ).fetchone()
         return dict(row) if row else None
     finally:
