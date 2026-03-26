@@ -30,13 +30,13 @@
 - [ ] Homework assistant
 
 ## Immediate next steps — Fastest MVP path
-- [ ] POST /auth/login
-- [ ] POST /auth/logout
+- [x] POST /auth/login
+- [x] POST /auth/logout
 - [ ] GET /me
 - [ ] GET /me/students
-- [ ] POST /admin/users
+- [x] POST /admin/users
 - [ ] GET /admin/users
-- [ ] POST /admin/students
+- [x] POST /admin/students
 - [ ] GET /admin/students
 - [ ] Admin users web page
 - [ ] Admin students web page

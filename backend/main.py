@@ -14,25 +14,27 @@ from pydantic import BaseModel
 from auth import (
     AuthUser,
     require_admin,
+    require_any_user,
     require_can_view_student,
     require_can_write_student,
 )
 from db import (
+    create_new_session,
+    delete_session_by_token,
+    fetch_user_by_email,
+    fetch_daily_feed_entries,
+    fetch_students,
+    fetch_user_by_id,
     init_db,
     insert_daily_feed_posts,
     insert_student,
     insert_user,
-    fetch_daily_feed_entries,
-    fetch_students,
     student_exists,
-    fetch_user_by_id,
     assign_parent_to_student,
     assign_teacher_to_student,
     parent_has_student,
     teacher_has_student,
     user_email_exists,
-    create_new_session,
-    fetch_user_by_email,
 )
 
 
@@ -76,6 +78,10 @@ class AssignTeacherRequest(BaseModel):
 class CreateLoginRequest(BaseModel):
     email: str
     password: str
+
+
+class LogoutRequest(BaseModel):
+    pass
 
 @app.get("/health")
 def health_check():
@@ -304,6 +310,15 @@ def create_login(
         "expires_at_utc": expires_at,
         "user": response_user,
     }
+
+
+@app.post("/auth/logout", status_code=status.HTTP_200_OK)
+def logout(
+    payload: LogoutRequest,
+    user: AuthUser = Depends(require_any_user),
+):
+    delete_session_by_token(token=user.token)
+    return {"ok": True}
 
 
 
