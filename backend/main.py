@@ -386,3 +386,23 @@ def assign_teacher(
         "teacher_user_id": payload.teacher_user_id,
         "student_id": payload.student_id,
     }
+
+
+
+@app.get("/me", status_code=status.HTTP_200_OK)
+def get_me(
+    user: AuthUser = Depends(require_any_user),
+):
+    response_user = {
+        "id": user.user_id,
+        "role": user.role,
+        "full_name": user.full_name,
+        "email": user.email,
+        "is_active": user.is_active,
+        "created_at_utc": user.created_at_utc,
+    }
+
+    return {
+        "ok": True,
+        "user": response_user    
+    }
