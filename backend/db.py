@@ -651,14 +651,16 @@ def student_exists(*, student_id: int) -> bool:
 def fetch_user_by_token(*, token: str) -> Optional[dict[str, Any]]:
     conn = get_db_connection()
     try:
+        now = datetime.now(timezone.utc).isoformat()
         row = conn.execute(
             """
-            SELECT u.id AS user_id, u.role
+            SELECT u.id AS user_id, u.role, u.full_name, u.email, u.is_active, u.created_at_utc, s.expires_at_utc
             FROM user_sessions s
             JOIN users u ON u.id = s.user_id
             WHERE s.token = ?
+            AND s.expires_at_utc > ?
             """,
-            (token,),
+            (token,now),
         ).fetchone()
         return dict(row) if row else None
     finally:

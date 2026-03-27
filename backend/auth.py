@@ -19,6 +19,10 @@ class AuthUser:
     role: Role
     user_id: int
     token: str
+    full_name: str
+    email: str
+    is_active: bool
+    created_at_utc: str
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -54,7 +58,15 @@ def get_current_user(
         )
 
     # SQLite stores role as TEXT; we trust it because schema CHECK limits it.
-    return AuthUser(role=row["role"], user_id=row["user_id"], token=token)
+    return AuthUser(
+        role=row["role"],
+        user_id=row["user_id"],
+        token=token,
+        full_name=row["full_name"],
+        email=row["email"],
+        is_active=bool(row["is_active"]),
+        created_at_utc=row["created_at_utc"],
+    )
 
 
 def require_any_user(user: AuthUser = Depends(get_current_user)) -> AuthUser:

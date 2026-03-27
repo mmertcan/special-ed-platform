@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -481,6 +482,88 @@ def test_logout_invalid_token_returns_401(client: TestClient):
         "/auth/logout",
         json={},
         headers=auth_header("wrong-token"),
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid token"
+
+
+def test_get_me_returns_current_user(client: TestClient):
+    create_response = create_user_via_admin(
+        client,
+        email="me-teacher@example.com",
+        password="known-password-123",
+    )
+    assert create_response.status_code == 201
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": "me-teacher@example.com",
+            "password": "known-password-123",
+        },
+    )
+    assert login_response.status_code == 200
+    token = login_response.json()["token"]
+
+    response = client.get(
+        "/me",
+        headers=auth_header(token),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["user"]["id"] == 4
+    assert payload["user"]["role"] == "teacher"
+    assert payload["user"]["full_name"] == "Dil ve Konusma Terapisti"
+    assert payload["user"]["email"] == "me-teacher@example.com"
+    assert payload["user"]["is_active"] is True
+    assert payload["user"]["created_at_utc"].endswith("+00:00")
+
+
+def test_get_me_missing_authorization_header_returns_401(client: TestClient):
+    response = client.get("/me")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "missing Authorization header"
+
+
+def test_get_me_invalid_token_returns_401(client: TestClient):
+    response = client.get(
+        "/me",
+        headers=auth_header("wrong-token"),
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid token"
+
+
+def test_get_me_expired_token_returns_401(client: TestClient):
+    create_response = create_user_via_admin(
+        client,
+        email="expired-session@example.com",
+        password="known-password-123",
+    )
+    assert create_response.status_code == 201
+
+    expired_token = "expired-session-token"
+    created_at_utc = datetime.now(timezone.utc).isoformat()
+    expires_at_utc = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+
+    conn = db.get_db_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO user_sessions (token, user_id, created_at_utc, expires_at_utc)
+            VALUES (?, ?, ?, ?)
+            """,
+            (expired_token, 4, created_at_utc, expires_at_utc),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    response = client.get(
+        "/me",
+        headers=auth_header(expired_token),
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "invalid token"
