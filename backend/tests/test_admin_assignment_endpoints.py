@@ -569,6 +569,65 @@ def test_get_me_expired_token_returns_401(client: TestClient):
     assert response.json()["detail"] == "invalid token"
 
 
+def test_get_me_students_returns_parent_students(client: TestClient):
+    response = client.get(
+        "/me/students",
+        headers=auth_header("parent-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["viewer_role"] == "parent"
+    assert payload["viewer_user_id"] == 3
+    assert payload["students"] == [
+        {"id": 1, "full_name": "Ayse", "is_active": True},
+        {"id": 2, "full_name": "Memo", "is_active": True},
+    ]
+
+
+def test_get_me_students_returns_teacher_students(client: TestClient):
+    response = client.get(
+        "/me/students",
+        headers=auth_header("teacher-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["viewer_role"] == "teacher"
+    assert payload["viewer_user_id"] == 2
+    assert payload["students"] == [
+        {"id": 1, "full_name": "Ayse", "is_active": True},
+        {"id": 3, "full_name": "Jason", "is_active": True},
+        {"id": 5, "full_name": "Tobby", "is_active": True},
+    ]
+
+
+def test_get_me_students_admin_returns_403(client: TestClient):
+    response = client.get(
+        "/me/students",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "admin should use /admin/students"
+
+
+def test_get_me_students_missing_authorization_header_returns_401(client: TestClient):
+    response = client.get("/me/students")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "missing Authorization header"
+
+
+def test_get_me_students_invalid_token_returns_401(client: TestClient):
+    response = client.get(
+        "/me/students",
+        headers=auth_header("wrong-token"),
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid token"
+
+
 def test_teacher_can_create_daily_feed_post(client: TestClient):
     response = client.post(
         "/students/1/daily-feed",
