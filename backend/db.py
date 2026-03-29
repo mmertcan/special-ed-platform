@@ -501,6 +501,52 @@ def fetch_daily_feed_entries(*, student_id: int) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+def fetch_student_from_parent(*, parent_user_id: int) -> list[dict[str, Any]]:
+    """
+    Fetches active students linked to one parent.
+    """
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT sp.student_id AS id, s.full_name, s.is_active
+            FROM student_parents sp
+            JOIN students s ON sp.student_id = s.id
+            WHERE sp.parent_user_id = ?
+            AND s.is_active = 1
+            ORDER BY s.full_name ASC
+            """,
+            (parent_user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return [dict(r) for r in rows]
+
+
+def fetch_student_from_teacher(*, teacher_user_id: int) -> list[dict[str, Any]]:
+    """
+    Fetches active students linked to one teacher.
+    """
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT st.student_id AS id, s.full_name, s.is_active
+            FROM student_teachers st
+            JOIN students s ON st.student_id = s.id
+            WHERE st.teacher_user_id = ?
+            AND s.is_active = 1
+            ORDER BY s.full_name ASC
+            """,
+            (teacher_user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return [dict(r) for r in rows]
+
+
 # -------------------------
 # NEW: Users / tokens / students helpers
 # -------------------------

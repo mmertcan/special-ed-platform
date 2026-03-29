@@ -25,6 +25,8 @@ from db import (
     fetch_daily_feed_entries,
     fetch_students,
     fetch_user_by_id,
+    fetch_student_from_parent,
+    fetch_student_from_teacher,
     init_db,
     insert_daily_feed_posts,
     insert_student,
@@ -405,4 +407,36 @@ def get_me(
     return {
         "ok": True,
         "user": response_user    
+    }
+
+
+
+@app.get("/me/students", status_code=status.HTTP_200_OK)
+def get_me_students(
+    user: AuthUser = Depends(require_any_user),
+):
+    if user.role == "admin":
+        raise HTTPException(status_code=403, detail="admin should use /admin/students")
+
+    if user.role == "parent":
+        students = fetch_student_from_parent(parent_user_id=user.user_id)
+    elif user.role == "teacher":
+        students = fetch_student_from_teacher(teacher_user_id=user.user_id)
+    else:
+        raise HTTPException(status_code=403, detail="role not allowed")
+
+    student_response = [
+        {
+            "id": student["id"],
+            "full_name": student["full_name"],
+            "is_active": bool(student["is_active"]),
+        }
+        for student in students
+    ]
+
+    return {
+        "ok": True,
+        "viewer_role": user.role,
+        "viewer_user_id": user.user_id,
+        "students": student_response,
     }

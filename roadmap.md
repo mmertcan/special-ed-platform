@@ -32,8 +32,8 @@
 ## Immediate next steps — Fastest MVP path
 - [x] POST /auth/login
 - [x] POST /auth/logout
-- [ ] GET /me
-- [ ] GET /me/students
+- [x] GET /me
+- [x] GET /me/students
 - [x] POST /admin/users
 - [ ] GET /admin/users
 - [x] POST /admin/students
