@@ -226,24 +226,39 @@ type AuthState = {
 ```
 
 - [ ] Show current assignments for the selected student
-- [ ] Backend blocker:
+- [x] Backend blocker resolved:
 - [x] add `GET /admin/assignments?student_id=123`
-- [ ] Recommended response:
+- [x] Read response is available for frontend wiring:
 
 ```json
 {
   "ok": true,
-  "student_id": 123,
+  "student": {
+    "id": 123,
+    "full_name": "Ayse",
+    "is_active": true
+  },
   "parents": [
-    { "id": 3, "full_name": "Parent User", "email": "parent@example.com" }
+    {
+      "id": 3,
+      "full_name": "Parent User",
+      "email": "parent@example.com",
+      "is_active": true,
+      "relationship_label": "mother"
+    }
   ],
   "teachers": [
-    { "id": 2, "full_name": "Teacher User", "email": "teacher@example.com" }
+    {
+      "id": 2,
+      "full_name": "Teacher User",
+      "email": "teacher@example.com",
+      "is_active": true
+    }
   ]
 }
 ```
 
-- [ ] Until that read endpoint exists, admin can assign but cannot reliably inspect existing links
+- [x] Admin assignments can now read current links once the frontend page is wired
 - [ ] Acceptance check:
 - [ ] admin can assign teacher to student
 - [ ] admin can assign parent to student
