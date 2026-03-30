@@ -1,4 +1,5 @@
 import { PublicOnly } from "../../components/public-only";
+import { LoginForm } from "../../components/login-form";
 
 export default function LoginPage() {
   return (
@@ -7,31 +8,38 @@ export default function LoginPage() {
         <div className="container">
           <section className="hero-card stack">
             <div className="stack">
-              <p className="eyebrow">Step 1 completed</p>
-              <h1 className="title">Frontend foundation is ready.</h1>
+              <p className="eyebrow">Login</p>
+              <h1 className="title">Sign in to the school portal.</h1>
               <p className="subtitle">
-                This page exists so unauthenticated users have a stable entry
-                point. The actual email and password form is the next build
-                step.
+                First principle: this page takes credentials, sends them to{" "}
+                <code>POST /auth/login</code>, stores the returned token, and
+                then routes the user by role.
               </p>
             </div>
 
-            <div className="panel stack">
-              <h2 className="section-title">What already works</h2>
-              <ul className="meta-list">
-                <li className="meta-item">
-                  Session token persistence in <code>localStorage</code>
-                </li>
-                <li className="meta-item">
-                  Session restore via <code>GET /me</code> on refresh
-                </li>
-                <li className="meta-item">
-                  Role-based redirects for admin, teacher, and parent routes
-                </li>
-                <li className="meta-item">
-                  Logout flow through <code>POST /auth/logout</code>
-                </li>
-              </ul>
+            <div className="login-grid">
+              <LoginForm />
+
+              <aside className="panel stack">
+                <h2 className="section-title">What happens after submit</h2>
+                <ul className="meta-list">
+                  <li className="meta-item">
+                    Valid credentials return a session token and current user.
+                  </li>
+                  <li className="meta-item">
+                    The token is stored in <code>localStorage</code>.
+                  </li>
+                  <li className="meta-item">
+                    Admin goes to <code>/admin</code>, teacher goes to{" "}
+                    <code>/teacher</code>, and parent goes to{" "}
+                    <code>/parent/feed</code>.
+                  </li>
+                  <li className="meta-item">
+                    Invalid credentials stay on this page and show the backend
+                    error text.
+                  </li>
+                </ul>
+              </aside>
             </div>
           </section>
         </div>

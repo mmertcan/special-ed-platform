@@ -349,6 +349,7 @@ def create_login(
         "full_name": session_user["full_name"],
         "email": session_user["email"],
         "is_active": bool(session_user["is_active"]),
+        "created_at_utc": session_user["created_at_utc"],
     }
 
     return {
