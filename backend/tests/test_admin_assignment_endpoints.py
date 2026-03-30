@@ -151,6 +151,152 @@ def test_create_student_teacher_token_returns_403(client: TestClient):
     assert response.json()["detail"] == "admin role required"
 
 
+def test_admin_can_list_all_students_sorted_by_id_desc(client: TestClient):
+    response = client.get(
+        "/admin/students",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["students"] == [
+        {
+            "id": 5,
+            "full_name": "Tobby",
+            "is_active": True,
+            "created_at_utc": payload["students"][0]["created_at_utc"],
+        },
+        {
+            "id": 4,
+            "full_name": "Jikan",
+            "is_active": True,
+            "created_at_utc": payload["students"][1]["created_at_utc"],
+        },
+        {
+            "id": 3,
+            "full_name": "Jason",
+            "is_active": True,
+            "created_at_utc": payload["students"][2]["created_at_utc"],
+        },
+        {
+            "id": 2,
+            "full_name": "Memo",
+            "is_active": True,
+            "created_at_utc": payload["students"][3]["created_at_utc"],
+        },
+        {
+            "id": 1,
+            "full_name": "Ayse",
+            "is_active": True,
+            "created_at_utc": payload["students"][4]["created_at_utc"],
+        },
+    ]
+    for student in payload["students"]:
+        assert student["created_at_utc"].endswith("+00:00")
+
+
+def test_admin_can_filter_students_by_is_active_true(client: TestClient):
+    create_response = client.post(
+        "/admin/students",
+        json={"full_name": "Inactive Student", "is_active": False},
+        headers=auth_header("admin-token-123"),
+    )
+    assert create_response.status_code == 201
+
+    response = client.get(
+        "/admin/students?is_active=true",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["students"] == [
+        {
+            "id": 5,
+            "full_name": "Tobby",
+            "is_active": True,
+            "created_at_utc": payload["students"][0]["created_at_utc"],
+        },
+        {
+            "id": 4,
+            "full_name": "Jikan",
+            "is_active": True,
+            "created_at_utc": payload["students"][1]["created_at_utc"],
+        },
+        {
+            "id": 3,
+            "full_name": "Jason",
+            "is_active": True,
+            "created_at_utc": payload["students"][2]["created_at_utc"],
+        },
+        {
+            "id": 2,
+            "full_name": "Memo",
+            "is_active": True,
+            "created_at_utc": payload["students"][3]["created_at_utc"],
+        },
+        {
+            "id": 1,
+            "full_name": "Ayse",
+            "is_active": True,
+            "created_at_utc": payload["students"][4]["created_at_utc"],
+        },
+    ]
+
+
+def test_admin_can_filter_students_by_is_active_false(client: TestClient):
+    create_response = client.post(
+        "/admin/students",
+        json={"full_name": "Inactive Student", "is_active": False},
+        headers=auth_header("admin-token-123"),
+    )
+    assert create_response.status_code == 201
+
+    response = client.get(
+        "/admin/students?is_active=false",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["students"] == [
+        {
+            "id": 6,
+            "full_name": "Inactive Student",
+            "is_active": False,
+            "created_at_utc": payload["students"][0]["created_at_utc"],
+        }
+    ]
+    assert payload["students"][0]["created_at_utc"].endswith("+00:00")
+
+
+def test_admin_students_teacher_token_returns_403(client: TestClient):
+    response = client.get(
+        "/admin/students",
+        headers=auth_header("teacher-token-123"),
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "admin role required"
+
+
+def test_admin_students_missing_authorization_header_returns_401(client: TestClient):
+    response = client.get("/admin/students")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "missing Authorization header"
+
+
+def test_admin_students_invalid_token_returns_401(client: TestClient):
+    response = client.get(
+        "/admin/students",
+        headers=auth_header("wrong-token"),
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid token"
+
+
 def test_admin_can_create_user(client: TestClient):
     response = client.post(
         "/admin/users",

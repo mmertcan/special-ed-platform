@@ -546,6 +546,30 @@ def fetch_student_from_teacher(*, teacher_user_id: int) -> list[dict[str, Any]]:
 
     return [dict(r) for r in rows]
 
+
+def fetch_admin_students(
+    *,
+    is_active: bool | None = None,
+) -> list[dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        query = """
+                SELECT id, full_name, is_active, created_at_utc
+                FROM students
+                """
+        params = []
+
+        if is_active is not None:
+            query += " WHERE is_active = ?"
+            params.append(int(is_active))
+
+        query += " ORDER BY id DESC"
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
 def fetch_users(
         *,
         role: str | None = None,
