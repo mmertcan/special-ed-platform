@@ -24,6 +24,9 @@ from db import (
     fetch_admin_students,
     create_new_session,
     delete_session_by_token,
+    fetch_parents_for_student,
+    fetch_student_summary_by_id,
+    fetch_teachers_for_student,
     fetch_user_by_email,
     fetch_daily_feed_entries,
     fetch_students,
@@ -429,6 +432,57 @@ def assign_teacher(
         "assigned_by_user_id": user.user_id,
         "teacher_user_id": payload.teacher_user_id,
         "student_id": payload.student_id,
+    }
+
+
+@app.get("/admin/assignments", status_code=status.HTTP_200_OK)
+def get_admin_assignments(
+    student_id: str | None = None,
+    user: AuthUser = Depends(require_admin),
+):
+    if student_id is None:
+        raise HTTPException(status_code=400, detail="student_id is required")
+
+    try:
+        student_id_int = int(student_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="student_id must be an integer") from None
+
+    assert_student_exists(student_id_int)
+
+    student = fetch_student_summary_by_id(student_id=student_id_int)
+    if student is None:
+        raise HTTPException(status_code=404, detail="student not found")
+
+    parents = fetch_parents_for_student(student_id=student_id_int)
+    teachers = fetch_teachers_for_student(student_id=student_id_int)
+
+    return {
+        "ok": True,
+        "student": {
+            "id": student["id"],
+            "full_name": student["full_name"],
+            "is_active": bool(student["is_active"]),
+        },
+        "parents": [
+            {
+                "id": parent["id"],
+                "full_name": parent["full_name"],
+                "email": parent["email"],
+                "is_active": bool(parent["is_active"]),
+                "relationship_label": parent["relationship_label"],
+            }
+            for parent in parents
+        ],
+        "teachers": [
+            {
+                "id": teacher["id"],
+                "full_name": teacher["full_name"],
+                "email": teacher["email"],
+                "is_active": bool(teacher["is_active"]),
+            }
+            for teacher in teachers
+        ],
     }
 
 

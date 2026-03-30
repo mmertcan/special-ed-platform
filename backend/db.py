@@ -570,6 +570,67 @@ def fetch_admin_students(
         conn.close()
 
 
+def fetch_student_summary_by_id(*, student_id: int) -> Optional[dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT id, full_name, is_active
+            FROM students
+            WHERE id = ?
+            """,
+            (student_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def fetch_parents_for_student(*, student_id: int) -> list[dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                u.id,
+                u.full_name,
+                u.email,
+                u.is_active,
+                sp.relationship_label
+            FROM student_parents sp
+            JOIN users u ON u.id = sp.parent_user_id
+            WHERE sp.student_id = ?
+            ORDER BY u.full_name ASC
+            """,
+            (student_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def fetch_teachers_for_student(*, student_id: int) -> list[dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                u.id,
+                u.full_name,
+                u.email,
+                u.is_active
+            FROM student_teachers st
+            JOIN users u ON u.id = st.teacher_user_id
+            WHERE st.student_id = ?
+            ORDER BY u.full_name ASC
+            """,
+            (student_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
 def fetch_users(
         *,
         role: str | None = None,
