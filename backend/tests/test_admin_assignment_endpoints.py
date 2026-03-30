@@ -736,7 +736,9 @@ def test_login_returns_session_for_valid_credentials(client: TestClient):
         "full_name": "Dil ve Konusma Terapisti",
         "email": "login-teacher@example.com",
         "is_active": True,
+        "created_at_utc": payload["user"]["created_at_utc"],
     }
+    assert payload["user"]["created_at_utc"].endswith("+00:00")
     assert "password_hash" not in payload["user"]
 
     conn = db.get_db_connection()

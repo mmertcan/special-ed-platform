@@ -99,22 +99,21 @@ type AuthState = {
 - [x] logout button that calls `POST /auth/logout`, clears local token, and routes to `/login`
 
 ### `/login`
-- [x] Create a placeholder login route for unauthenticated entry
-- [ ] Build login form with `email` and `password`
-- [ ] Add submit loading state
-- [ ] POST form to `POST /auth/login`
-- [ ] On success:
-- [ ] store returned token in `localStorage`
-- [ ] store returned user in auth state
-- [ ] route by `user.role`
-- [ ] On invalid credentials:
-- [ ] show backend error message
-- [ ] keep user on `/login`
-- [ ] If already logged in, immediately redirect by role
-- [ ] Acceptance check:
-- [ ] admin lands on `/admin`
-- [ ] teacher lands on `/teacher`
-- [ ] parent lands on `/parent/feed`
+- [x] Build login form with `email` and `password`
+- [x] Add submit loading state
+- [x] POST form to `POST /auth/login`
+- [x] On success:
+- [x] store returned token in `localStorage`
+- [x] store returned user in auth state
+- [x] route by `user.role`
+- [x] On invalid credentials:
+- [x] show backend error message
+- [x] keep user on `/login`
+- [x] If already logged in, immediately redirect by role
+- [x] Acceptance check:
+- [x] admin lands on `/admin`
+- [x] teacher lands on `/teacher`
+- [x] parent lands on `/parent/feed`
 
 ### `/admin`
 - [x] Create a minimal admin landing page
@@ -390,7 +389,7 @@ type AuthState = {
 
 ### Recommended frontend build order
 - [x] 1. Shared frontend foundation
-- [ ] 2. `/login`
+- [x] 2. `/login`
 - [x] 3. auth boot and role redirects
 - [x] 4. `/admin`
 - [ ] 5. `/admin/users`

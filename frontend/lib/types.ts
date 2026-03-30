@@ -20,3 +20,10 @@ export type MeResponse = {
   ok: true;
   user: CurrentUser;
 };
+
+export type LoginResponse = {
+  ok: true;
+  token: string;
+  expires_at_utc: string;
+  user: CurrentUser;
+};
