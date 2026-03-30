@@ -24,6 +24,7 @@ from db import (
     fetch_user_by_email,
     fetch_daily_feed_entries,
     fetch_students,
+    fetch_users,
     fetch_user_by_id,
     fetch_student_from_parent,
     fetch_student_from_teacher,
@@ -439,4 +440,29 @@ def get_me_students(
         "viewer_role": user.role,
         "viewer_user_id": user.user_id,
         "students": student_response,
+    }
+
+
+
+@app.get("/admin/users", status_code=status.HTTP_200_OK)
+def list_admin_users(
+    role: str | None = None,
+    is_active: bool | None = None,
+    user: AuthUser = Depends(require_admin),
+):
+    users = fetch_users(role=role, is_active=is_active)
+
+    return {
+        "ok": True,
+        "users": [
+            {
+                "id": current_user["id"],
+                "role": current_user["role"],
+                "full_name": current_user["full_name"],
+                "email": current_user["email"],
+                "is_active": bool(current_user["is_active"]),
+                "created_at_utc": current_user["created_at_utc"],
+            }
+            for current_user in users
+        ],
     }
