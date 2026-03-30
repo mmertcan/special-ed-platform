@@ -19,6 +19,7 @@ from auth import (
     require_can_write_student,
 )
 from db import (
+    fetch_admin_students,
     create_new_session,
     delete_session_by_token,
     fetch_user_by_email,
@@ -214,6 +215,27 @@ def create_student(
     )
 
     return {"ok": True, "student": student}
+
+
+@app.get("/admin/students", status_code=status.HTTP_200_OK)
+def list_admin_students(
+    is_active: bool | None = None,
+    user: AuthUser = Depends(require_admin),
+):
+    students = fetch_admin_students(is_active=is_active)
+
+    return {
+        "ok": True,
+        "students": [
+            {
+                "id": student["id"],
+                "full_name": student["full_name"],
+                "is_active": bool(student["is_active"]),
+                "created_at_utc": student["created_at_utc"],
+            }
+            for student in students
+        ],
+    }
 
 
 @app.post("/admin/users", status_code=status.HTTP_201_CREATED)

@@ -35,9 +35,9 @@
 - [x] GET /me
 - [x] GET /me/students
 - [x] POST /admin/users
-- [ ] GET /admin/users
+- [x] GET /admin/users
 - [x] POST /admin/students
-- [ ] GET /admin/students
+- [x] GET /admin/students
 - [ ] Admin users web page
 - [ ] Admin students web page
 - [ ] Admin assignments web page
