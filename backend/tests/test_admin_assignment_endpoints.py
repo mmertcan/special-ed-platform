@@ -105,6 +105,108 @@ def test_assign_parent_duplicate_assignment_returns_409(client: TestClient):
     assert response.json()["detail"] == "parent already assigned"
 
 
+def test_admin_can_get_assignments_for_student(client: TestClient):
+    response = client.get(
+        "/admin/assignments?student_id=1",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["student"] == {
+        "id": 1,
+        "full_name": "Ayse",
+        "is_active": True,
+    }
+    assert payload["parents"] == [
+        {
+            "id": 3,
+            "full_name": "Parent User",
+            "email": "parent@example.com",
+            "is_active": True,
+            "relationship_label": "mother",
+        }
+    ]
+    assert payload["teachers"] == [
+        {
+            "id": 2,
+            "full_name": "Teacher User",
+            "email": "teacher@example.com",
+            "is_active": True,
+        }
+    ]
+
+
+def test_admin_can_get_empty_assignments_for_unassigned_student(client: TestClient):
+    response = client.get(
+        "/admin/assignments?student_id=4",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["student"] == {
+        "id": 4,
+        "full_name": "Jikan",
+        "is_active": True,
+    }
+    assert payload["parents"] == []
+    assert payload["teachers"] == []
+
+
+def test_get_admin_assignments_missing_student_id_returns_400(client: TestClient):
+    response = client.get(
+        "/admin/assignments",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "student_id is required"
+
+
+def test_get_admin_assignments_invalid_student_id_returns_400(client: TestClient):
+    response = client.get(
+        "/admin/assignments?student_id=abc",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "student_id must be an integer"
+
+
+def test_get_admin_assignments_nonexistent_student_returns_404(client: TestClient):
+    response = client.get(
+        "/admin/assignments?student_id=9999",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "student not found"
+
+
+def test_get_admin_assignments_teacher_token_returns_403(client: TestClient):
+    response = client.get(
+        "/admin/assignments?student_id=1",
+        headers=auth_header("teacher-token-123"),
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "admin role required"
+
+
+def test_get_admin_assignments_missing_auth_returns_401(client: TestClient):
+    response = client.get("/admin/assignments?student_id=1")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "missing Authorization header"
+
+
+def test_get_admin_assignments_invalid_token_returns_401(client: TestClient):
+    response = client.get(
+        "/admin/assignments?student_id=1",
+        headers=auth_header("wrong-token"),
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid token"
+
+
 def test_admin_can_create_student(client: TestClient):
     response = client.post(
         "/admin/students",

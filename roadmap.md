@@ -228,7 +228,7 @@ type AuthState = {
 
 - [ ] Show current assignments for the selected student
 - [ ] Backend blocker:
-- [ ] add `GET /admin/assignments?student_id=123`
+- [x] add `GET /admin/assignments?student_id=123`
 - [ ] Recommended response:
 
 ```json
