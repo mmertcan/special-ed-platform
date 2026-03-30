@@ -10,3 +10,6 @@ venv/
 .venv/
 **/.venv/
 dev_journal_private.md
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
