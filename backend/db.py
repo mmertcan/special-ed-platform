@@ -546,6 +546,36 @@ def fetch_student_from_teacher(*, teacher_user_id: int) -> list[dict[str, Any]]:
 
     return [dict(r) for r in rows]
 
+def fetch_users(
+        *,
+        role: str | None = None,
+        is_active: bool | None = None,
+) -> list[dict[str,Any]]:
+    conn = get_db_connection()
+    try:
+        query = """
+                SELECT id, role, full_name, email, is_active, created_at_utc
+                FROM users
+                """
+        conditions = []
+        params = []
+        if role is not None:
+            conditions.append("role = ?")
+            params.append(role)
+        if is_active is not None:
+            conditions.append("is_active = ?")
+            params.append(int(is_active))
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY id DESC"
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+    
+
 
 # -------------------------
 # NEW: Users / tokens / students helpers

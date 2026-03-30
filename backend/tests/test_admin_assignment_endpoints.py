@@ -314,6 +314,152 @@ def test_create_user_stores_hashed_password(client: TestClient):
     assert row["password_hash"].startswith("pbkdf2_sha256$")
 
 
+def test_admin_can_list_all_users_sorted_by_id_desc(client: TestClient):
+    response = client.get(
+        "/admin/users",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["users"] == [
+        {
+            "id": 3,
+            "role": "parent",
+            "full_name": "Parent User",
+            "email": "parent@example.com",
+            "is_active": True,
+            "created_at_utc": payload["users"][0]["created_at_utc"],
+        },
+        {
+            "id": 2,
+            "role": "teacher",
+            "full_name": "Teacher User",
+            "email": "teacher@example.com",
+            "is_active": True,
+            "created_at_utc": payload["users"][1]["created_at_utc"],
+        },
+        {
+            "id": 1,
+            "role": "admin",
+            "full_name": "Admin User",
+            "email": "admin@example.com",
+            "is_active": True,
+            "created_at_utc": payload["users"][2]["created_at_utc"],
+        },
+    ]
+    assert payload["users"][0]["created_at_utc"].endswith("+00:00")
+    assert payload["users"][1]["created_at_utc"].endswith("+00:00")
+    assert payload["users"][2]["created_at_utc"].endswith("+00:00")
+
+
+def test_admin_can_filter_users_by_role(client: TestClient):
+    response = client.get(
+        "/admin/users?role=teacher",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["users"] == [
+        {
+            "id": 2,
+            "role": "teacher",
+            "full_name": "Teacher User",
+            "email": "teacher@example.com",
+            "is_active": True,
+            "created_at_utc": payload["users"][0]["created_at_utc"],
+        }
+    ]
+    assert payload["users"][0]["created_at_utc"].endswith("+00:00")
+
+
+def test_admin_can_filter_users_by_is_active(client: TestClient):
+    create_response = create_user_via_admin(
+        client,
+        email="inactive-parent@example.com",
+        role="parent",
+        is_active=False,
+    )
+    assert create_response.status_code == 201
+
+    response = client.get(
+        "/admin/users?is_active=false",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["users"] == [
+        {
+            "id": 4,
+            "role": "parent",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "inactive-parent@example.com",
+            "is_active": False,
+            "created_at_utc": payload["users"][0]["created_at_utc"],
+        }
+    ]
+    assert payload["users"][0]["created_at_utc"].endswith("+00:00")
+
+
+def test_admin_can_filter_users_by_role_and_is_active(client: TestClient):
+    create_response = create_user_via_admin(
+        client,
+        email="inactive-teacher-list@example.com",
+        role="teacher",
+        is_active=False,
+    )
+    assert create_response.status_code == 201
+
+    response = client.get(
+        "/admin/users?role=teacher&is_active=false",
+        headers=auth_header("admin-token-123"),
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["users"] == [
+        {
+            "id": 4,
+            "role": "teacher",
+            "full_name": "Dil ve Konusma Terapisti",
+            "email": "inactive-teacher-list@example.com",
+            "is_active": False,
+            "created_at_utc": payload["users"][0]["created_at_utc"],
+        }
+    ]
+    assert payload["users"][0]["created_at_utc"].endswith("+00:00")
+
+
+def test_admin_users_teacher_token_returns_403(client: TestClient):
+    response = client.get(
+        "/admin/users",
+        headers=auth_header("teacher-token-123"),
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "admin role required"
+
+
+def test_admin_users_missing_authorization_header_returns_401(client: TestClient):
+    response = client.get("/admin/users")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "missing Authorization header"
+
+
+def test_admin_users_invalid_token_returns_401(client: TestClient):
+    response = client.get(
+        "/admin/users",
+        headers=auth_header("wrong-token"),
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "invalid token"
+
+
 def test_login_returns_session_for_valid_credentials(client: TestClient):
     create_response = create_user_via_admin(
         client,
