@@ -331,6 +331,10 @@ select {
   gap: 14px;
 }
 
+.students-grid {
+  grid-template-columns: 1.5fr 0.8fr 1fr;
+}
+
 .data-list-header {
   padding: 0 4px;
 }
@@ -377,6 +381,10 @@ select {
   }
 
   .data-row {
+    grid-template-columns: 1fr;
+  }
+
+  .students-grid {
     grid-template-columns: 1fr;
   }
 

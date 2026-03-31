@@ -45,3 +45,15 @@ export type AdminCreateUserResponse = {
   ok: true;
   user: CurrentUser;
 };
+
+export type StudentRecord = {
+  id: number;
+  full_name: string;
+  is_active: boolean;
+  created_at_utc: string;
+};
+
+export type AdminStudentsResponse = {
+  ok: true;
+  students: StudentRecord[];
+};
