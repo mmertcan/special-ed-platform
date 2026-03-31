@@ -134,19 +134,19 @@ type AuthState = {
 - [x] role
 - [x] active status
 - [x] created time
-- [ ] Add role filter:
+- [x] Add role filter:
 - [x] all
 - [x] admin
 - [x] teacher
 - [x] parent
 - [x] Wire role filter to query string, example:
 - [x] `GET /admin/users?role=teacher`
-- [ ] Add active filter:
-- [ ] all
-- [ ] active
-- [ ] inactive
-- [ ] Wire active filter to query string, example:
-- [ ] `GET /admin/users?is_active=true`
+- [x] Add active filter:
+- [x] all
+- [x] active
+- [x] inactive
+- [x] Wire active filter to query string, example:
+- [x] `GET /admin/users?is_active=true`
 - [ ] Build create user form with fields:
 - [ ] full_name
 - [ ] email
@@ -164,7 +164,7 @@ type AuthState = {
 - [ ] Acceptance check:
 - [ ] admin can create teacher
 - [ ] admin can create parent
-- [ ] admin can filter by role and active status
+- [x] admin can filter by role and active status
 
 ### `/admin/students`
 - [x] Create a protected placeholder route for `/admin/students`

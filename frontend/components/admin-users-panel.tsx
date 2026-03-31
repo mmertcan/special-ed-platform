@@ -9,8 +9,10 @@ import { LogoutButton } from "./logout-button";
 import { UserSummary } from "./user-summary";
 
 type RoleFilter = "all" | UserRole;
+type ActiveFilter = "all" | "active" | "inactive";
 
 const roleOptions: RoleFilter[] = ["all", "admin", "teacher", "parent"];
+const activeOptions: ActiveFilter[] = ["all", "active", "inactive"];
 
 export function AdminUsersPanel() {
   const { token } = useAuth();
@@ -21,6 +23,7 @@ export function AdminUsersPanel() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const selectedRole = parseRoleFilter(searchParams.get("role"));
+  const selectedActive = parseActiveFilter(searchParams.get("is_active"));
 
   useEffect(() => {
     let cancelled = false;
@@ -39,7 +42,7 @@ export function AdminUsersPanel() {
 
       try {
         const payload = await apiRequest<AdminUsersResponse>(
-          buildUsersPath(selectedRole),
+          buildUsersPath(selectedRole, selectedActive),
           {
             token,
           },
@@ -69,7 +72,7 @@ export function AdminUsersPanel() {
     return () => {
       cancelled = true;
     };
-  }, [selectedRole, token]);
+  }, [selectedActive, selectedRole, token]);
 
   const handleRoleChange = (role: RoleFilter) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -78,6 +81,19 @@ export function AdminUsersPanel() {
       params.delete("role");
     } else {
       params.set("role", role);
+    }
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
+
+  const handleActiveChange = (active: ActiveFilter) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (active === "all") {
+      params.delete("is_active");
+    } else {
+      params.set("is_active", active === "active" ? "true" : "false");
     }
 
     const query = params.toString();
@@ -95,9 +111,9 @@ export function AdminUsersPanel() {
               <p className="subtitle">
                 This slice does one thing well: it calls{" "}
                 <code>GET /admin/users</code> on page load, syncs the role
-                filter to the URL, and renders the core user fields so the
-                admin can inspect the directory before active-status filters and
-                creation controls are added.
+                and active filters to the URL, and renders the core user fields
+                so the admin can inspect the directory before creation controls
+                are added.
               </p>
             </div>
             <LogoutButton />
@@ -113,32 +129,59 @@ export function AdminUsersPanel() {
               <p className="status-note">
                 Showing {users.length} user{users.length === 1 ? "" : "s"} for{" "}
                 {selectedRole === "all" ? "all roles" : `role: ${selectedRole}`}
+                {" "}and{" "}
+                {selectedActive === "all"
+                  ? "all activity states"
+                  : selectedActive === "active"
+                    ? "active users only"
+                    : "inactive users only"}
                 .
               </p>
             </div>
 
-            <label className="filter-field">
-              <span className="field-label">Role filter</span>
-              <select
-                className="field-input filter-select"
-                value={selectedRole}
-                onChange={(event) =>
-                  handleRoleChange(event.target.value as RoleFilter)
-                }
-                aria-label="Filter users by role"
-              >
-                {roleOptions.map((role) => (
-                  <option key={role} value={role}>
-                    {role === "all" ? "All roles" : capitalizeRole(role)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="filters-row">
+              <label className="filter-field">
+                <span className="field-label">Role filter</span>
+                <select
+                  className="field-input filter-select"
+                  value={selectedRole}
+                  onChange={(event) =>
+                    handleRoleChange(event.target.value as RoleFilter)
+                  }
+                  aria-label="Filter users by role"
+                >
+                  {roleOptions.map((role) => (
+                    <option key={role} value={role}>
+                      {role === "all" ? "All roles" : capitalizeRole(role)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Active filter</span>
+                <select
+                  className="field-input filter-select"
+                  value={selectedActive}
+                  onChange={(event) =>
+                    handleActiveChange(event.target.value as ActiveFilter)
+                  }
+                  aria-label="Filter users by active status"
+                >
+                  {activeOptions.map((active) => (
+                    <option key={active} value={active}>
+                      {formatActiveOption(active)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
 
           {isLoading ? (
             <p className="status-note">
-              Loading users from <code>{buildUsersPath(selectedRole)}</code>.
+              Loading users from{" "}
+              <code>{buildUsersPath(selectedRole, selectedActive)}</code>.
             </p>
           ) : null}
 
@@ -239,10 +282,47 @@ function parseRoleFilter(value: string | null): RoleFilter {
   return "all";
 }
 
-function buildUsersPath(role: RoleFilter) {
-  return role === "all" ? "/admin/users" : `/admin/users?role=${role}`;
+function parseActiveFilter(value: string | null): ActiveFilter {
+  if (value === "true") {
+    return "active";
+  }
+
+  if (value === "false") {
+    return "inactive";
+  }
+
+  return "all";
+}
+
+function buildUsersPath(role: RoleFilter, active: ActiveFilter) {
+  const params = new URLSearchParams();
+
+  if (role !== "all") {
+    params.set("role", role);
+  }
+
+  if (active === "active") {
+    params.set("is_active", "true");
+  } else if (active === "inactive") {
+    params.set("is_active", "false");
+  }
+
+  const query = params.toString();
+  return query ? `/admin/users?${query}` : "/admin/users";
 }
 
 function capitalizeRole(role: UserRole) {
   return `${role.charAt(0).toUpperCase()}${role.slice(1)}`;
+}
+
+function formatActiveOption(active: ActiveFilter) {
+  if (active === "all") {
+    return "All statuses";
+  }
+
+  if (active === "active") {
+    return "Active only";
+  }
+
+  return "Inactive only";
 }

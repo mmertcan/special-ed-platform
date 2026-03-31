@@ -193,6 +193,13 @@ select {
   min-width: 180px;
 }
 
+.filters-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .field-label {
   font-size: 0.95rem;
   color: var(--muted);
@@ -338,5 +345,15 @@ select {
 
   .data-row {
     grid-template-columns: 1fr;
+  }
+
+  .filters-row {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .filter-field,
+  .filter-select {
+    width: 100%;
   }
 }
