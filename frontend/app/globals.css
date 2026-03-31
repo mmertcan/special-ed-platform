@@ -187,6 +187,12 @@ select {
   gap: 8px;
 }
 
+.filter-field {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+}
+
 .field-label {
   font-size: 0.95rem;
   color: var(--muted);
@@ -204,6 +210,10 @@ select {
 .field-input:focus {
   outline: 2px solid rgba(15, 118, 110, 0.2);
   border-color: rgba(15, 118, 110, 0.45);
+}
+
+.filter-select {
+  min-width: 180px;
 }
 
 .form-error {

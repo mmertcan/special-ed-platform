@@ -135,12 +135,12 @@ type AuthState = {
 - [x] active status
 - [x] created time
 - [ ] Add role filter:
-- [ ] all
-- [ ] admin
-- [ ] teacher
-- [ ] parent
-- [ ] Wire role filter to query string, example:
-- [ ] `GET /admin/users?role=teacher`
+- [x] all
+- [x] admin
+- [x] teacher
+- [x] parent
+- [x] Wire role filter to query string, example:
+- [x] `GET /admin/users?role=teacher`
 - [ ] Add active filter:
 - [ ] all
 - [ ] active
