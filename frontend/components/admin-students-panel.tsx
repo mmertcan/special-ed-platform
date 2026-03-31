@@ -1,17 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ApiError, apiRequest } from "../lib/api";
 import type { AdminStudentsResponse, StudentRecord } from "../lib/types";
 import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
 import { UserSummary } from "./user-summary";
 
+type ActiveFilter = "all" | "active" | "inactive";
+
+const activeOptions: ActiveFilter[] = ["all", "active", "inactive"];
+
 export function AdminStudentsPanel() {
   const { token } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const selectedActive = parseActiveFilter(searchParams.get("is_active"));
 
   useEffect(() => {
     let cancelled = false;
@@ -29,9 +38,12 @@ export function AdminStudentsPanel() {
       setErrorMessage(null);
 
       try {
-        const payload = await apiRequest<AdminStudentsResponse>("/admin/students", {
-          token,
-        });
+        const payload = await apiRequest<AdminStudentsResponse>(
+          buildStudentsPath(selectedActive),
+          {
+            token,
+          },
+        );
 
         if (!cancelled) {
           setStudents(payload.students);
@@ -57,7 +69,20 @@ export function AdminStudentsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [selectedActive, token]);
+
+  const handleActiveChange = (active: ActiveFilter) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (active === "all") {
+      params.delete("is_active");
+    } else {
+      params.set("is_active", active === "active" ? "true" : "false");
+    }
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
 
   return (
     <main className="app-shell">
@@ -69,9 +94,9 @@ export function AdminStudentsPanel() {
               <h1 className="title">Read the current student directory.</h1>
               <p className="subtitle">
                 First principle: this page does one narrow job. It calls{" "}
-                <code>GET /admin/students</code> on page load and renders the
-                core student fields before filters and creation controls are
-                added.
+                <code>GET /admin/students</code> on page load, syncs the active
+                filter to the URL, and renders the core student fields before
+                creation controls are added.
               </p>
             </div>
             <LogoutButton />
@@ -81,17 +106,43 @@ export function AdminStudentsPanel() {
         <UserSummary />
 
         <section className="panel stack">
-          <div className="stack status-stack">
-            <h2 className="section-title">Current students</h2>
-            <p className="status-note">
-              Showing {students.length} student{students.length === 1 ? "" : "s"}{" "}
-              from the backend.
-            </p>
+          <div className="row space-between">
+            <div className="stack status-stack">
+              <h2 className="section-title">Current students</h2>
+              <p className="status-note">
+                Showing {students.length} student{students.length === 1 ? "" : "s"}{" "}
+                for{" "}
+                {selectedActive === "all"
+                  ? "all activity states"
+                  : selectedActive === "active"
+                    ? "active students only"
+                    : "inactive students only"}
+                .
+              </p>
+            </div>
+
+            <label className="filter-field">
+              <span className="field-label">Active filter</span>
+              <select
+                className="field-input filter-select"
+                value={selectedActive}
+                onChange={(event) =>
+                  handleActiveChange(event.target.value as ActiveFilter)
+                }
+                aria-label="Filter students by active status"
+              >
+                {activeOptions.map((active) => (
+                  <option key={active} value={active}>
+                    {formatActiveOption(active)}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {isLoading ? (
             <p className="status-note">
-              Loading students from <code>GET /admin/students</code>.
+              Loading students from <code>{buildStudentsPath(selectedActive)}</code>.
             </p>
           ) : null}
 
@@ -166,4 +217,40 @@ function formatUtcTimestamp(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function parseActiveFilter(value: string | null): ActiveFilter {
+  if (value === "true") {
+    return "active";
+  }
+
+  if (value === "false") {
+    return "inactive";
+  }
+
+  return "all";
+}
+
+function buildStudentsPath(active: ActiveFilter) {
+  if (active === "active") {
+    return "/admin/students?is_active=true";
+  }
+
+  if (active === "inactive") {
+    return "/admin/students?is_active=false";
+  }
+
+  return "/admin/students";
+}
+
+function formatActiveOption(active: ActiveFilter) {
+  if (active === "all") {
+    return "All statuses";
+  }
+
+  if (active === "active") {
+    return "Active only";
+  }
+
+  return "Inactive only";
 }
