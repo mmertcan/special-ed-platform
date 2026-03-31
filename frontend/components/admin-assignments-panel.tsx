@@ -221,9 +221,10 @@ export function AdminAssignmentsPanel() {
         <div className="admin-assignments-layout">
           <section className="panel stack">
             <div className="stack form-header">
-              <h2 className="section-title">Student selector</h2>
+              <h2 className="section-title">Step 1. Choose the student</h2>
               <p className="status-note">
-                The dropdown options come directly from <code>GET /admin/students</code>.
+                First principle: the student is the assignment context. Everything
+                else on this page is about the currently selected student.
               </p>
             </div>
 
@@ -273,16 +274,68 @@ export function AdminAssignmentsPanel() {
                   The selected student lives in <code>?student_id=...</code>, so a
                   refresh keeps the same assignment context.
                 </p>
+
+                <div className="stack status-stack">
+                  <h3 className="section-title">Current student context</h3>
+                  <p className="status-note">
+                    This is the exact student record that future parent and teacher
+                    assignment actions will target.
+                  </p>
+                </div>
+
+                {selectedStudent ? (
+                  <ul className="meta-list">
+                    <li className="meta-item">
+                      <span className="meta-label">Student id</span>
+                      {selectedStudent.id}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Full name</span>
+                      {selectedStudent.full_name}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Active</span>
+                      <span
+                        className={
+                          selectedStudent.is_active
+                            ? "status-chip status-chip-success"
+                            : "status-chip status-chip-muted"
+                        }
+                      >
+                        {selectedStudent.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Created</span>
+                      {formatUtcTimestamp(selectedStudent.created_at_utc)}
+                    </li>
+                  </ul>
+                ) : (
+                  <p className="status-note">
+                    Pick a student first. The rest of the page depends on that choice.
+                  </p>
+                )}
               </>
             ) : null}
+          </section>
 
-            <div className="stack form-header">
-              <h2 className="section-title">Parent selector</h2>
+          <section className="panel stack">
+            <div className="stack status-stack">
+              <h2 className="section-title">Step 2. Choose the parent for that student</h2>
               <p className="status-note">
                 This dropdown is intentionally narrow: it only loads active
                 parents through <code>GET /admin/users?role=parent&amp;is_active=true</code>.
+                Selecting a parent here does not create a link yet. It only prepares
+                the candidate for the future assign action.
               </p>
             </div>
+
+            {!selectedStudent ? (
+              <p className="status-note">
+                Choose a student on the left first. Then choose which parent should
+                be linked to that student.
+              </p>
+            ) : null}
 
             {isParentsLoading ? (
               <p className="status-note">
@@ -306,7 +359,9 @@ export function AdminAssignmentsPanel() {
             {!isParentsLoading && !parentsErrorMessage && parents.length > 0 ? (
               <>
                 <label className="field">
-                  <span className="field-label">Parent</span>
+                  <span className="field-label">
+                    Parent candidate for {selectedStudent?.full_name ?? "this student"}
+                  </span>
                   <select
                     className="field-input"
                     value={selectedParent ? String(selectedParent.id) : ""}
@@ -314,6 +369,7 @@ export function AdminAssignmentsPanel() {
                       handleParentChange(Number(event.target.value))
                     }
                     aria-label="Choose the parent candidate to assign"
+                    disabled={!selectedStudent}
                   >
                     {parents.map((parent) => (
                       <option key={parent.id} value={parent.id}>
@@ -327,86 +383,35 @@ export function AdminAssignmentsPanel() {
                   The selected parent lives in <code>?parent_user_id=...</code>,
                   so the candidate stays visible after refresh.
                 </p>
+
+                {selectedParent ? (
+                  <ul className="meta-list">
+                    <li className="meta-item">
+                      <span className="meta-label">Parent id</span>
+                      {selectedParent.id}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Full name</span>
+                      {selectedParent.full_name}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Email</span>
+                      {selectedParent.email}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Role</span>
+                      {selectedParent.role}
+                    </li>
+                  </ul>
+                ) : (
+                  <p className="status-note">
+                    Pick a parent next. The following roadmap slice can attach this
+                    parent to {selectedStudent?.full_name ?? "the selected student"}{" "}
+                    with a real POST request.
+                  </p>
+                )}
               </>
             ) : null}
-          </section>
-
-          <section className="panel stack">
-            <div className="stack status-stack">
-              <h2 className="section-title">Selected student</h2>
-              <p className="status-note">
-                This panel shows the exact student record that later assignment
-                actions will attach to.
-              </p>
-            </div>
-
-            {!selectedStudent ? (
-              <p className="status-note">
-                Pick a student first. The next roadmap slice will fetch parents,
-                teachers, and current assignment links for this student.
-              </p>
-            ) : (
-              <ul className="meta-list">
-                <li className="meta-item">
-                  <span className="meta-label">Student id</span>
-                  {selectedStudent.id}
-                </li>
-                <li className="meta-item">
-                  <span className="meta-label">Full name</span>
-                  {selectedStudent.full_name}
-                </li>
-                <li className="meta-item">
-                  <span className="meta-label">Active</span>
-                  <span
-                    className={
-                      selectedStudent.is_active
-                        ? "status-chip status-chip-success"
-                        : "status-chip status-chip-muted"
-                    }
-                  >
-                    {selectedStudent.is_active ? "Active" : "Inactive"}
-                  </span>
-                </li>
-                <li className="meta-item">
-                  <span className="meta-label">Created</span>
-                  {formatUtcTimestamp(selectedStudent.created_at_utc)}
-                </li>
-              </ul>
-            )}
-
-            <div className="stack status-stack">
-              <h2 className="section-title">Selected parent candidate</h2>
-              <p className="status-note">
-                This is the exact parent record that the future assign action
-                will send to the backend.
-              </p>
-            </div>
-
-            {!selectedParent ? (
-              <p className="status-note">
-                Pick a parent next. The following roadmap slice can attach this
-                parent to the current student with a real POST request.
-              </p>
-            ) : (
-              <ul className="meta-list">
-                <li className="meta-item">
-                  <span className="meta-label">Parent id</span>
-                  {selectedParent.id}
-                </li>
-                <li className="meta-item">
-                  <span className="meta-label">Full name</span>
-                  {selectedParent.full_name}
-                </li>
-                <li className="meta-item">
-                  <span className="meta-label">Email</span>
-                  {selectedParent.email}
-                </li>
-                <li className="meta-item">
-                  <span className="meta-label">Role</span>
-                  {selectedParent.role}
-                </li>
-              </ul>
-            )}
           </section>
         </div>
       </div>
