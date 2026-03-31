@@ -147,23 +147,23 @@ type AuthState = {
 - [x] inactive
 - [x] Wire active filter to query string, example:
 - [x] `GET /admin/users?is_active=true`
-- [ ] Build create user form with fields:
-- [ ] full_name
-- [ ] email
-- [ ] password
-- [ ] role
-- [ ] is_active
-- [ ] POST form to `POST /admin/users`
-- [ ] On success:
-- [ ] clear form
-- [ ] refresh user list
-- [ ] show success message
-- [ ] On failure:
-- [ ] show field or server error
-- [ ] keep entered values
+- [x] Build create user form with fields:
+- [x] full_name
+- [x] email
+- [x] password
+- [x] role
+- [x] is_active
+- [x] POST form to `POST /admin/users`
+- [x] On success:
+- [x] clear form
+- [x] refresh user list
+- [x] show success message
+- [x] On failure:
+- [x] show field or server error
+- [x] keep entered values
 - [ ] Acceptance check:
-- [ ] admin can create teacher
-- [ ] admin can create parent
+- [x] admin can create teacher
+- [x] admin can create parent
 - [x] admin can filter by role and active status
 
 ### `/admin/students`
