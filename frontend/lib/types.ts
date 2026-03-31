@@ -32,3 +32,16 @@ export type AdminUsersResponse = {
   ok: true;
   users: CurrentUser[];
 };
+
+export type AdminCreateUserRequest = {
+  full_name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  is_active: boolean;
+};
+
+export type AdminCreateUserResponse = {
+  ok: true;
+  user: CurrentUser;
+};

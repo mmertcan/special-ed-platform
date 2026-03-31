@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ApiError, apiRequest } from "../lib/api";
-import type { AdminUsersResponse, CurrentUser, UserRole } from "../lib/types";
+import type {
+  AdminCreateUserRequest,
+  AdminCreateUserResponse,
+  AdminUsersResponse,
+  CurrentUser,
+  UserRole,
+} from "../lib/types";
 import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
 import { UserSummary } from "./user-summary";
@@ -14,6 +20,14 @@ type ActiveFilter = "all" | "active" | "inactive";
 const roleOptions: RoleFilter[] = ["all", "admin", "teacher", "parent"];
 const activeOptions: ActiveFilter[] = ["all", "active", "inactive"];
 
+const initialCreateForm: AdminCreateUserRequest = {
+  full_name: "",
+  email: "",
+  password: "",
+  role: "teacher",
+  is_active: true,
+};
+
 export function AdminUsersPanel() {
   const { token } = useAuth();
   const pathname = usePathname();
@@ -22,6 +36,16 @@ export function AdminUsersPanel() {
   const [users, setUsers] = useState<CurrentUser[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [createForm, setCreateForm] =
+    useState<AdminCreateUserRequest>(initialCreateForm);
+  const [createErrorMessage, setCreateErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [createSuccessMessage, setCreateSuccessMessage] = useState<string | null>(
+    null,
+  );
+  const [isCreating, setIsCreating] = useState(false);
   const selectedRole = parseRoleFilter(searchParams.get("role"));
   const selectedActive = parseActiveFilter(searchParams.get("is_active"));
 
@@ -72,7 +96,7 @@ export function AdminUsersPanel() {
     return () => {
       cancelled = true;
     };
-  }, [selectedActive, selectedRole, token]);
+  }, [refreshKey, selectedActive, selectedRole, token]);
 
   const handleRoleChange = (role: RoleFilter) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -100,6 +124,41 @@ export function AdminUsersPanel() {
     router.replace(query ? `${pathname}?${query}` : pathname);
   };
 
+  const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!token) {
+      setCreateErrorMessage("You are not authenticated.");
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateErrorMessage(null);
+    setCreateSuccessMessage(null);
+
+    try {
+      const payload = await apiRequest<AdminCreateUserResponse>("/admin/users", {
+        method: "POST",
+        token,
+        body: createForm,
+      });
+
+      setCreateForm(initialCreateForm);
+      setCreateSuccessMessage(
+        `Created ${payload.user.role} user ${payload.user.email}.`,
+      );
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setCreateErrorMessage(error.message);
+      } else {
+        setCreateErrorMessage("User could not be created.");
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <main className="app-shell">
       <div className="container stack">
@@ -111,9 +170,8 @@ export function AdminUsersPanel() {
               <p className="subtitle">
                 This slice does one thing well: it calls{" "}
                 <code>GET /admin/users</code> on page load, syncs the role
-                and active filters to the URL, and renders the core user fields
-                so the admin can inspect the directory before creation controls
-                are added.
+                and active filters to the URL, and lets the admin create new
+                users without leaving the page.
               </p>
             </div>
             <LogoutButton />
@@ -122,7 +180,120 @@ export function AdminUsersPanel() {
 
         <UserSummary />
 
-        <section className="panel stack">
+        <div className="admin-users-layout">
+          <section className="panel stack">
+            <div className="stack form-header">
+              <h2 className="section-title">Create user</h2>
+              <p className="status-note">
+                These fields map directly to <code>POST /admin/users</code>.
+              </p>
+            </div>
+
+            <form className="stack" onSubmit={handleCreateUser}>
+              <div className="form-grid">
+                <label className="field">
+                  <span className="field-label">Full name</span>
+                  <input
+                    className="field-input"
+                    type="text"
+                    value={createForm.full_name}
+                    onChange={(event) =>
+                      setCreateForm((current) => ({
+                        ...current,
+                        full_name: event.target.value,
+                      }))
+                    }
+                    placeholder="Teacher User"
+                    required
+                  />
+                </label>
+
+                <label className="field">
+                  <span className="field-label">Email</span>
+                  <input
+                    className="field-input"
+                    type="email"
+                    value={createForm.email}
+                    onChange={(event) =>
+                      setCreateForm((current) => ({
+                        ...current,
+                        email: event.target.value,
+                      }))
+                    }
+                    placeholder="teacher@example.com"
+                    required
+                  />
+                </label>
+
+                <label className="field">
+                  <span className="field-label">Password</span>
+                  <input
+                    className="field-input"
+                    type="password"
+                    value={createForm.password}
+                    onChange={(event) =>
+                      setCreateForm((current) => ({
+                        ...current,
+                        password: event.target.value,
+                      }))
+                    }
+                    placeholder="Create a password"
+                    required
+                  />
+                </label>
+
+                <label className="field">
+                  <span className="field-label">Role</span>
+                  <select
+                    className="field-input"
+                    value={createForm.role}
+                    onChange={(event) =>
+                      setCreateForm((current) => ({
+                        ...current,
+                        role: event.target.value as UserRole,
+                      }))
+                    }
+                  >
+                    <option value="teacher">Teacher</option>
+                    <option value="parent">Parent</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={createForm.is_active}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      is_active: event.target.checked,
+                    }))
+                  }
+                />
+                <span>Active account</span>
+              </label>
+
+              {createSuccessMessage ? (
+                <p className="form-success" role="status">
+                  {createSuccessMessage}
+                </p>
+              ) : null}
+
+              {createErrorMessage ? (
+                <p className="form-error" role="alert">
+                  {createErrorMessage}
+                </p>
+              ) : null}
+
+              <button className="button form-submit" type="submit" disabled={isCreating}>
+                {isCreating ? "Creating user..." : "Create user"}
+              </button>
+            </form>
+          </section>
+
+          <section className="panel stack">
           <div className="row space-between">
             <div className="stack status-stack">
               <h2 className="section-title">Current users</h2>
@@ -255,7 +426,8 @@ export function AdminUsersPanel() {
               ))}
             </div>
           ) : null}
-        </section>
+          </section>
+        </div>
       </div>
     </main>
   );
