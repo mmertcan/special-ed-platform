@@ -27,3 +27,8 @@ export type LoginResponse = {
   expires_at_utc: string;
   user: CurrentUser;
 };
+
+export type AdminUsersResponse = {
+  ok: true;
+  users: CurrentUser[];
+};
