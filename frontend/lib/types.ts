@@ -57,3 +57,13 @@ export type AdminStudentsResponse = {
   ok: true;
   students: StudentRecord[];
 };
+
+export type AdminCreateStudentRequest = {
+  full_name: string;
+  is_active: boolean;
+};
+
+export type AdminCreateStudentResponse = {
+  ok: true;
+  student: StudentRecord;
+};
