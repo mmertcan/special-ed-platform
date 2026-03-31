@@ -265,12 +265,12 @@ export function AdminAssignmentsPanel() {
           <div className="row space-between">
             <div className="stack">
               <p className="eyebrow">Admin assignments</p>
-              <h1 className="title">Choose the student before assigning adults.</h1>
+              <h1 className="title">Assign parents and teachers to one student at a time.</h1>
               <p className="subtitle">
-                First principle: assignments have to anchor on one student. This
-                slice loads the student list and the active parent list, stores
-                both current choices in the URL, and keeps those choices stable
-                across refreshes.
+                First principle: this page is not a generic directory. It is a
+                student-centered assignment workflow. Pick one student, inspect
+                who is already linked, then prepare the next parent or teacher
+                assignment for that same student.
               </p>
             </div>
             <LogoutButton />
@@ -284,8 +284,8 @@ export function AdminAssignmentsPanel() {
             <div className="stack form-header">
               <h2 className="section-title">Step 1. Choose the student</h2>
               <p className="status-note">
-                First principle: the student is the assignment context. Everything
-                else on this page is about the currently selected student.
+                The student is the anchor record. Every link shown or created on
+                the right side belongs to this selected student.
               </p>
             </div>
 
@@ -337,10 +337,9 @@ export function AdminAssignmentsPanel() {
                 </p>
 
                 <div className="stack status-stack">
-                  <h3 className="section-title">Current student context</h3>
+                  <h3 className="section-title">Selected student</h3>
                   <p className="status-note">
-                    This is the exact student record that future parent and teacher
-                    assignment actions will target.
+                    This is the exact student that the assignment actions will target.
                   </p>
                 </div>
 
@@ -382,12 +381,13 @@ export function AdminAssignmentsPanel() {
 
           <section className="panel stack">
             <div className="stack status-stack">
-              <h2 className="section-title">Step 2. Choose the parent for that student</h2>
+              <h2 className="section-title">
+                Step 2. Review and prepare assignments for{" "}
+                {selectedStudent?.full_name ?? "the selected student"}
+              </h2>
               <p className="status-note">
-                This dropdown is intentionally narrow: it only loads active
-                parents through <code>GET /admin/users?role=parent&amp;is_active=true</code>.
-                Selecting a parent here does not create a link yet. It only prepares
-                the candidate for the future assign action.
+                The correct workflow is: inspect current links first, then pick a
+                new parent or teacher candidate for this same student.
               </p>
             </div>
 
@@ -401,14 +401,11 @@ export function AdminAssignmentsPanel() {
             {selectedStudent ? (
               <div className="stack">
                 <div className="stack status-stack">
-                  <h3 className="section-title">
-                    Current links for {selectedStudent.full_name}
-                  </h3>
+                  <h3 className="section-title">Current links</h3>
                   <p className="status-note">
                     This read comes from{" "}
                     <code>/admin/assignments?student_id={selectedStudent.id}</code>,
-                    so the admin can see existing parent names before adding a
-                    new link.
+                    so the admin can see who is already linked before assigning anyone else.
                   </p>
                 </div>
 
@@ -470,6 +467,15 @@ export function AdminAssignmentsPanel() {
               </div>
             ) : null}
 
+            <div className="stack status-stack">
+              <h3 className="section-title">Add parent link</h3>
+              <p className="status-note">
+                This section prepares the parent candidate for the selected
+                student. The actual <code>Assign parent</code> submit action is
+                the next slice.
+              </p>
+            </div>
+
             {isParentsLoading ? (
               <p className="status-note">
                 Loading parents from{" "}
@@ -518,8 +524,7 @@ export function AdminAssignmentsPanel() {
                 </p>
 
                 {selectedParentAlreadyLinked ? (
-                  <p className="status-note">
-                    Current status:{" "}
+                  <p className="form-success" role="status">
                     {selectedParent?.full_name ?? "This parent"} is already linked to{" "}
                     {selectedStudent?.full_name ?? "this student"}.
                   </p>
@@ -553,6 +558,15 @@ export function AdminAssignmentsPanel() {
                 )}
               </>
             ) : null}
+
+            <div className="stack status-stack">
+              <h3 className="section-title">Add teacher link</h3>
+              <p className="status-note">
+                Teacher assignment belongs to the same student-centered workflow.
+                The next implementation slice will load active teachers and add
+                the teacher selector here.
+              </p>
+            </div>
           </section>
         </div>
       </div>
