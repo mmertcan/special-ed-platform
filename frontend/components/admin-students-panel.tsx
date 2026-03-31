@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ApiError, apiRequest } from "../lib/api";
-import type { AdminStudentsResponse, StudentRecord } from "../lib/types";
+import type {
+  AdminCreateStudentRequest,
+  AdminCreateStudentResponse,
+  AdminStudentsResponse,
+  StudentRecord,
+} from "../lib/types";
 import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
 import { UserSummary } from "./user-summary";
@@ -11,6 +16,10 @@ import { UserSummary } from "./user-summary";
 type ActiveFilter = "all" | "active" | "inactive";
 
 const activeOptions: ActiveFilter[] = ["all", "active", "inactive"];
+const initialCreateForm: AdminCreateStudentRequest = {
+  full_name: "",
+  is_active: true,
+};
 
 export function AdminStudentsPanel() {
   const { token } = useAuth();
@@ -20,6 +29,16 @@ export function AdminStudentsPanel() {
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [createForm, setCreateForm] =
+    useState<AdminCreateStudentRequest>(initialCreateForm);
+  const [createErrorMessage, setCreateErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [createSuccessMessage, setCreateSuccessMessage] = useState<string | null>(
+    null,
+  );
+  const [isCreating, setIsCreating] = useState(false);
   const selectedActive = parseActiveFilter(searchParams.get("is_active"));
 
   useEffect(() => {
@@ -69,7 +88,7 @@ export function AdminStudentsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [selectedActive, token]);
+  }, [refreshKey, selectedActive, token]);
 
   const handleActiveChange = (active: ActiveFilter) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -84,6 +103,42 @@ export function AdminStudentsPanel() {
     router.replace(query ? `${pathname}?${query}` : pathname);
   };
 
+  const handleCreateStudent = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!token) {
+      setCreateErrorMessage("You are not authenticated.");
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateErrorMessage(null);
+    setCreateSuccessMessage(null);
+
+    try {
+      const payload = await apiRequest<AdminCreateStudentResponse>(
+        "/admin/students",
+        {
+          method: "POST",
+          token,
+          body: createForm,
+        },
+      );
+
+      setCreateForm(initialCreateForm);
+      setCreateSuccessMessage(`Created student ${payload.student.full_name}.`);
+      setRefreshKey((current) => current + 1);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setCreateErrorMessage(error.message);
+      } else {
+        setCreateErrorMessage("Student could not be created.");
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <main className="app-shell">
       <div className="container stack">
@@ -95,8 +150,8 @@ export function AdminStudentsPanel() {
               <p className="subtitle">
                 First principle: this page does one narrow job. It calls{" "}
                 <code>GET /admin/students</code> on page load, syncs the active
-                filter to the URL, and renders the core student fields before
-                creation controls are added.
+                filter to the URL, and lets the admin create students without
+                leaving the page.
               </p>
             </div>
             <LogoutButton />
@@ -105,102 +160,162 @@ export function AdminStudentsPanel() {
 
         <UserSummary />
 
-        <section className="panel stack">
-          <div className="row space-between">
-            <div className="stack status-stack">
-              <h2 className="section-title">Current students</h2>
+        <div className="admin-students-layout">
+          <section className="panel stack">
+            <div className="stack form-header">
+              <h2 className="section-title">Create student</h2>
               <p className="status-note">
-                Showing {students.length} student{students.length === 1 ? "" : "s"}{" "}
-                for{" "}
-                {selectedActive === "all"
-                  ? "all activity states"
-                  : selectedActive === "active"
-                    ? "active students only"
-                    : "inactive students only"}
-                .
+                These fields map directly to <code>POST /admin/students</code>.
               </p>
             </div>
 
-            <label className="filter-field">
-              <span className="field-label">Active filter</span>
-              <select
-                className="field-input filter-select"
-                value={selectedActive}
-                onChange={(event) =>
-                  handleActiveChange(event.target.value as ActiveFilter)
-                }
-                aria-label="Filter students by active status"
-              >
-                {activeOptions.map((active) => (
-                  <option key={active} value={active}>
-                    {formatActiveOption(active)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+            <form className="stack" onSubmit={handleCreateStudent}>
+              <label className="field">
+                <span className="field-label">Full name</span>
+                <input
+                  className="field-input"
+                  type="text"
+                  value={createForm.full_name}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      full_name: event.target.value,
+                    }))
+                  }
+                  placeholder="Student name"
+                  required
+                />
+              </label>
 
-          {isLoading ? (
-            <p className="status-note">
-              Loading students from <code>{buildStudentsPath(selectedActive)}</code>.
-            </p>
-          ) : null}
+              <label className="checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={createForm.is_active}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      is_active: event.target.checked,
+                    }))
+                  }
+                />
+                <span>Active student</span>
+              </label>
 
-          {errorMessage ? (
-            <p className="form-error" role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
+              {createSuccessMessage ? (
+                <p className="form-success" role="status">
+                  {createSuccessMessage}
+                </p>
+              ) : null}
 
-          {!isLoading && !errorMessage && students.length === 0 ? (
-            <p className="status-note">
-              No students were returned by the backend.
-            </p>
-          ) : null}
+              {createErrorMessage ? (
+                <p className="form-error" role="alert">
+                  {createErrorMessage}
+                </p>
+              ) : null}
 
-          {!isLoading && !errorMessage && students.length > 0 ? (
-            <div className="data-list" role="table" aria-label="Admin students list">
-              <div className="data-list-header students-grid" role="row">
-                <span className="data-cell-label" role="columnheader">
-                  Full name
-                </span>
-                <span className="data-cell-label" role="columnheader">
-                  Active
-                </span>
-                <span className="data-cell-label" role="columnheader">
-                  Created
-                </span>
+              <button className="button form-submit" type="submit" disabled={isCreating}>
+                {isCreating ? "Creating student..." : "Create student"}
+              </button>
+            </form>
+          </section>
+
+          <section className="panel stack">
+            <div className="row space-between">
+              <div className="stack status-stack">
+                <h2 className="section-title">Current students</h2>
+                <p className="status-note">
+                  Showing {students.length} student{students.length === 1 ? "" : "s"}{" "}
+                  for{" "}
+                  {selectedActive === "all"
+                    ? "all activity states"
+                    : selectedActive === "active"
+                      ? "active students only"
+                      : "inactive students only"}
+                  .
+                </p>
               </div>
 
-              {students.map((student) => (
-                <article className="data-row students-grid" key={student.id} role="row">
-                  <div className="data-cell" role="cell">
-                    <span className="data-cell-label">Full name</span>
-                    <strong>{student.full_name}</strong>
-                  </div>
-
-                  <div className="data-cell" role="cell">
-                    <span className="data-cell-label">Active</span>
-                    <span
-                      className={
-                        student.is_active
-                          ? "status-chip status-chip-success"
-                          : "status-chip status-chip-muted"
-                      }
-                    >
-                      {student.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-
-                  <div className="data-cell" role="cell">
-                    <span className="data-cell-label">Created</span>
-                    <span>{formatUtcTimestamp(student.created_at_utc)}</span>
-                  </div>
-                </article>
-              ))}
+              <label className="filter-field">
+                <span className="field-label">Active filter</span>
+                <select
+                  className="field-input filter-select"
+                  value={selectedActive}
+                  onChange={(event) =>
+                    handleActiveChange(event.target.value as ActiveFilter)
+                  }
+                  aria-label="Filter students by active status"
+                >
+                  {activeOptions.map((active) => (
+                    <option key={active} value={active}>
+                      {formatActiveOption(active)}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-          ) : null}
-        </section>
+
+            {isLoading ? (
+              <p className="status-note">
+                Loading students from <code>{buildStudentsPath(selectedActive)}</code>.
+              </p>
+            ) : null}
+
+            {errorMessage ? (
+              <p className="form-error" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
+
+            {!isLoading && !errorMessage && students.length === 0 ? (
+              <p className="status-note">
+                No students were returned by the backend.
+              </p>
+            ) : null}
+
+            {!isLoading && !errorMessage && students.length > 0 ? (
+              <div className="data-list" role="table" aria-label="Admin students list">
+                <div className="data-list-header students-grid" role="row">
+                  <span className="data-cell-label" role="columnheader">
+                    Full name
+                  </span>
+                  <span className="data-cell-label" role="columnheader">
+                    Active
+                  </span>
+                  <span className="data-cell-label" role="columnheader">
+                    Created
+                  </span>
+                </div>
+
+                {students.map((student) => (
+                  <article className="data-row students-grid" key={student.id} role="row">
+                    <div className="data-cell" role="cell">
+                      <span className="data-cell-label">Full name</span>
+                      <strong>{student.full_name}</strong>
+                    </div>
+
+                    <div className="data-cell" role="cell">
+                      <span className="data-cell-label">Active</span>
+                      <span
+                        className={
+                          student.is_active
+                            ? "status-chip status-chip-success"
+                            : "status-chip status-chip-muted"
+                        }
+                      >
+                        {student.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+
+                    <div className="data-cell" role="cell">
+                      <span className="data-cell-label">Created</span>
+                      <span>{formatUtcTimestamp(student.created_at_utc)}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        </div>
       </div>
     </main>
   );

@@ -180,19 +180,19 @@ type AuthState = {
 - [x] inactive
 - [x] Wire filter to query string, example:
 - [x] `GET /admin/students?is_active=false`
-- [ ] Build create student form with fields:
-- [ ] full_name
-- [ ] is_active
-- [ ] POST form to `POST /admin/students`
-- [ ] On success:
-- [ ] clear form
-- [ ] refresh student list
-- [ ] show success message
-- [ ] On failure:
-- [ ] show server error
-- [ ] keep entered values
+- [x] Build create student form with fields:
+- [x] full_name
+- [x] is_active
+- [x] POST form to `POST /admin/students`
+- [x] On success:
+- [x] clear form
+- [x] refresh student list
+- [x] show success message
+- [x] On failure:
+- [x] show server error
+- [x] keep entered values
 - [ ] Acceptance check:
-- [ ] admin can create student
+- [x] admin can create student
 - [x] admin can filter active and inactive students
 
 ### `/admin/assignments`
