@@ -95,3 +95,15 @@ export type AdminAssignmentsResponse = {
   parents: AssignmentLinkedParent[];
   teachers: AssignmentLinkedTeacher[];
 };
+
+export type AssignParentRequest = {
+  parent_user_id: number;
+  student_id: number;
+};
+
+export type AssignParentResponse = {
+  ok: true;
+  assigned_by_user_id: number;
+  parent_user_id: number;
+  student_id: number;
+};

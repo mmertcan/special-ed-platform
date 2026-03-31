@@ -203,9 +203,9 @@ type AuthState = {
 - [x] Build student selector
 - [x] Build parent selector
 - [ ] Build teacher selector
-- [ ] Add "Assign parent" action:
-- [ ] POST to `POST /admin/assign-parent`
-- [ ] body shape:
+- [x] Add "Assign parent" action:
+- [x] POST to `POST /admin/assign-parent`
+- [x] body shape:
 
 ```json
 {
@@ -261,8 +261,8 @@ type AuthState = {
 - [x] Admin assignments can now read current links once the frontend page is wired
 - [ ] Acceptance check:
 - [ ] admin can assign teacher to student
-- [ ] admin can assign parent to student
-- [ ] admin can see current links for a student
+- [x] admin can assign parent to student
+- [x] admin can see current links for a student
 
 ### `/teacher`
 - [x] Create a minimal teacher landing page
