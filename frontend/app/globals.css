@@ -87,6 +87,12 @@ select {
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
 }
 
+.admin-assignments-layout {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+}
+
 .stack {
   display: grid;
   gap: 20px;
@@ -378,6 +384,7 @@ select {
   }
 
   .admin-users-layout,
+  .admin-assignments-layout,
   .admin-students-layout,
   .form-grid {
     grid-template-columns: 1fr;
