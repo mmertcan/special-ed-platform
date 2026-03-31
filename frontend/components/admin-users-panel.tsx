@@ -1,17 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ApiError, apiRequest } from "../lib/api";
-import type { AdminUsersResponse, CurrentUser } from "../lib/types";
+import type { AdminUsersResponse, CurrentUser, UserRole } from "../lib/types";
 import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
 import { UserSummary } from "./user-summary";
 
+type RoleFilter = "all" | UserRole;
+
+const roleOptions: RoleFilter[] = ["all", "admin", "teacher", "parent"];
+
 export function AdminUsersPanel() {
   const { token } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [users, setUsers] = useState<CurrentUser[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const selectedRole = parseRoleFilter(searchParams.get("role"));
 
   useEffect(() => {
     let cancelled = false;
@@ -29,9 +38,12 @@ export function AdminUsersPanel() {
       setErrorMessage(null);
 
       try {
-        const payload = await apiRequest<AdminUsersResponse>("/admin/users", {
-          token,
-        });
+        const payload = await apiRequest<AdminUsersResponse>(
+          buildUsersPath(selectedRole),
+          {
+            token,
+          },
+        );
 
         if (!cancelled) {
           setUsers(payload.users);
@@ -57,7 +69,20 @@ export function AdminUsersPanel() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [selectedRole, token]);
+
+  const handleRoleChange = (role: RoleFilter) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (role === "all") {
+      params.delete("role");
+    } else {
+      params.set("role", role);
+    }
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
 
   return (
     <main className="app-shell">
@@ -69,9 +94,10 @@ export function AdminUsersPanel() {
               <h1 className="title">Read the current user directory.</h1>
               <p className="subtitle">
                 This slice does one thing well: it calls{" "}
-                <code>GET /admin/users</code> on page load and renders the core
-                user fields so the admin can inspect the directory before
-                filters and creation controls are added.
+                <code>GET /admin/users</code> on page load, syncs the role
+                filter to the URL, and renders the core user fields so the
+                admin can inspect the directory before active-status filters and
+                creation controls are added.
               </p>
             </div>
             <LogoutButton />
@@ -85,15 +111,34 @@ export function AdminUsersPanel() {
             <div className="stack status-stack">
               <h2 className="section-title">Current users</h2>
               <p className="status-note">
-                Showing {users.length} user{users.length === 1 ? "" : "s"} from
-                the backend.
+                Showing {users.length} user{users.length === 1 ? "" : "s"} for{" "}
+                {selectedRole === "all" ? "all roles" : `role: ${selectedRole}`}
+                .
               </p>
             </div>
+
+            <label className="filter-field">
+              <span className="field-label">Role filter</span>
+              <select
+                className="field-input filter-select"
+                value={selectedRole}
+                onChange={(event) =>
+                  handleRoleChange(event.target.value as RoleFilter)
+                }
+                aria-label="Filter users by role"
+              >
+                {roleOptions.map((role) => (
+                  <option key={role} value={role}>
+                    {role === "all" ? "All roles" : capitalizeRole(role)}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {isLoading ? (
             <p className="status-note">
-              Loading users from <code>GET /admin/users</code>.
+              Loading users from <code>{buildUsersPath(selectedRole)}</code>.
             </p>
           ) : null}
 
@@ -184,4 +229,20 @@ function formatUtcTimestamp(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function parseRoleFilter(value: string | null): RoleFilter {
+  if (value === "admin" || value === "teacher" || value === "parent") {
+    return value;
+  }
+
+  return "all";
+}
+
+function buildUsersPath(role: RoleFilter) {
+  return role === "all" ? "/admin/users" : `/admin/users?role=${role}`;
+}
+
+function capitalizeRole(role: UserRole) {
+  return `${role.charAt(0).toUpperCase()}${role.slice(1)}`;
 }
