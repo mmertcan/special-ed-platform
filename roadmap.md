@@ -174,12 +174,12 @@ type AuthState = {
 - [x] full name
 - [x] active status
 - [x] created time
-- [ ] Add active filter:
-- [ ] all
-- [ ] active
-- [ ] inactive
-- [ ] Wire filter to query string, example:
-- [ ] `GET /admin/students?is_active=false`
+- [x] Add active filter:
+- [x] all
+- [x] active
+- [x] inactive
+- [x] Wire filter to query string, example:
+- [x] `GET /admin/students?is_active=false`
 - [ ] Build create student form with fields:
 - [ ] full_name
 - [ ] is_active
@@ -193,7 +193,7 @@ type AuthState = {
 - [ ] keep entered values
 - [ ] Acceptance check:
 - [ ] admin can create student
-- [ ] admin can filter active and inactive students
+- [x] admin can filter active and inactive students
 
 ### `/admin/assignments`
 - [x] Create a protected placeholder route for `/admin/assignments`
