@@ -168,12 +168,12 @@ type AuthState = {
 
 ### `/admin/students`
 - [x] Create a protected placeholder route for `/admin/students`
-- [ ] Fetch `GET /admin/students` on page load
-- [ ] Render table or list of students
-- [ ] Show columns:
-- [ ] full name
-- [ ] active status
-- [ ] created time
+- [x] Fetch `GET /admin/students` on page load
+- [x] Render table or list of students
+- [x] Show columns:
+- [x] full name
+- [x] active status
+- [x] created time
 - [ ] Add active filter:
 - [ ] all
 - [ ] active
