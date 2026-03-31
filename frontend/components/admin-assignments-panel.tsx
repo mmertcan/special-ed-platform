@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ApiError, apiRequest } from "../lib/api";
 import type {
+  AdminAssignmentsResponse,
   AdminStudentsResponse,
   AdminUsersResponse,
   CurrentUser,
@@ -26,8 +27,14 @@ export function AdminAssignmentsPanel() {
   const [parentsErrorMessage, setParentsErrorMessage] = useState<string | null>(
     null,
   );
+  const [assignmentsErrorMessage, setAssignmentsErrorMessage] = useState<string | null>(
+    null,
+  );
   const [isStudentsLoading, setIsStudentsLoading] = useState(true);
   const [isParentsLoading, setIsParentsLoading] = useState(true);
+  const [isAssignmentsLoading, setIsAssignmentsLoading] = useState(false);
+  const [currentAssignments, setCurrentAssignments] =
+    useState<AdminAssignmentsResponse | null>(null);
   const selectedStudentId = parsePositiveInteger(searchParams.get("student_id"));
   const selectedParentId = parsePositiveInteger(
     searchParams.get("parent_user_id"),
@@ -36,6 +43,10 @@ export function AdminAssignmentsPanel() {
     students.find((student) => student.id === selectedStudentId) ?? null;
   const selectedParent =
     parents.find((parent) => parent.id === selectedParentId) ?? null;
+  const selectedParentAlreadyLinked = Boolean(
+    selectedParent &&
+      currentAssignments?.parents.some((parent) => parent.id === selectedParent.id),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +133,56 @@ export function AdminAssignmentsPanel() {
       cancelled = true;
     };
   }, [token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAssignments() {
+      if (!token || !selectedStudent) {
+        if (!cancelled) {
+          setCurrentAssignments(null);
+          setAssignmentsErrorMessage(null);
+          setIsAssignmentsLoading(false);
+        }
+        return;
+      }
+
+      setIsAssignmentsLoading(true);
+      setAssignmentsErrorMessage(null);
+
+      try {
+        const payload = await apiRequest<AdminAssignmentsResponse>(
+          `/admin/assignments?student_id=${selectedStudent.id}`,
+          {
+            token,
+          },
+        );
+
+        if (!cancelled) {
+          setCurrentAssignments(payload);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          if (error instanceof ApiError) {
+            setAssignmentsErrorMessage(error.message);
+          } else {
+            setAssignmentsErrorMessage("Current assignments could not be loaded.");
+          }
+          setCurrentAssignments(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAssignmentsLoading(false);
+        }
+      }
+    }
+
+    void loadAssignments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStudent, token]);
 
   useEffect(() => {
     if (
@@ -337,6 +398,78 @@ export function AdminAssignmentsPanel() {
               </p>
             ) : null}
 
+            {selectedStudent ? (
+              <div className="stack">
+                <div className="stack status-stack">
+                  <h3 className="section-title">
+                    Current links for {selectedStudent.full_name}
+                  </h3>
+                  <p className="status-note">
+                    This read comes from{" "}
+                    <code>/admin/assignments?student_id={selectedStudent.id}</code>,
+                    so the admin can see existing parent names before adding a
+                    new link.
+                  </p>
+                </div>
+
+                {isAssignmentsLoading ? (
+                  <p className="status-note">
+                    Loading current links for {selectedStudent.full_name}.
+                  </p>
+                ) : null}
+
+                {assignmentsErrorMessage ? (
+                  <p className="form-error" role="alert">
+                    {assignmentsErrorMessage}
+                  </p>
+                ) : null}
+
+                {!isAssignmentsLoading && !assignmentsErrorMessage ? (
+                  <>
+                    <div className="stack status-stack">
+                      <h3 className="section-title">Linked parents</h3>
+                      <p className="status-note">
+                        {currentAssignments?.parents.length
+                          ? `This student already has ${currentAssignments.parents.length} parent link${currentAssignments.parents.length === 1 ? "" : "s"}.`
+                          : "This student does not have any parent links yet."}
+                      </p>
+                    </div>
+
+                    {currentAssignments?.parents.length ? (
+                      <ul className="meta-list">
+                        {currentAssignments.parents.map((parent) => (
+                          <li className="meta-item" key={parent.id}>
+                            <span className="meta-label">Parent</span>
+                            {parent.full_name} ({parent.email})
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    <div className="stack status-stack">
+                      <h3 className="section-title">Linked teachers</h3>
+                      <p className="status-note">
+                        {currentAssignments?.teachers.length
+                          ? `This student already has ${currentAssignments.teachers.length} teacher link${currentAssignments.teachers.length === 1 ? "" : "s"}.`
+                          : "This student does not have any teacher links yet."}
+                      </p>
+                    </div>
+
+                    {currentAssignments?.teachers.length ? (
+                      <ul className="meta-list">
+                        {currentAssignments.teachers.map((teacher) => (
+                          <li className="meta-item" key={teacher.id}>
+                            <span className="meta-label">Teacher</span>
+                            {teacher.full_name} ({teacher.email})
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+
             {isParentsLoading ? (
               <p className="status-note">
                 Loading parents from{" "}
@@ -383,6 +516,14 @@ export function AdminAssignmentsPanel() {
                   The selected parent lives in <code>?parent_user_id=...</code>,
                   so the candidate stays visible after refresh.
                 </p>
+
+                {selectedParentAlreadyLinked ? (
+                  <p className="status-note">
+                    Current status:{" "}
+                    {selectedParent?.full_name ?? "This parent"} is already linked to{" "}
+                    {selectedStudent?.full_name ?? "this student"}.
+                  </p>
+                ) : null}
 
                 {selectedParent ? (
                   <ul className="meta-list">
