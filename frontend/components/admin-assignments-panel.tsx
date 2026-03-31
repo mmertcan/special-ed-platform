@@ -23,10 +23,14 @@ export function AdminAssignmentsPanel() {
   const searchParams = useSearchParams();
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [parents, setParents] = useState<CurrentUser[]>([]);
+  const [teachers, setTeachers] = useState<CurrentUser[]>([]);
   const [studentsErrorMessage, setStudentsErrorMessage] = useState<string | null>(
     null,
   );
   const [parentsErrorMessage, setParentsErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [teachersErrorMessage, setTeachersErrorMessage] = useState<string | null>(
     null,
   );
   const [assignmentsErrorMessage, setAssignmentsErrorMessage] = useState<string | null>(
@@ -40,6 +44,7 @@ export function AdminAssignmentsPanel() {
   >(null);
   const [isStudentsLoading, setIsStudentsLoading] = useState(true);
   const [isParentsLoading, setIsParentsLoading] = useState(true);
+  const [isTeachersLoading, setIsTeachersLoading] = useState(true);
   const [isAssignmentsLoading, setIsAssignmentsLoading] = useState(false);
   const [isAssigningParent, setIsAssigningParent] = useState(false);
   const [assignmentsRefreshKey, setAssignmentsRefreshKey] = useState(0);
@@ -49,13 +54,22 @@ export function AdminAssignmentsPanel() {
   const selectedParentId = parsePositiveInteger(
     searchParams.get("parent_user_id"),
   );
+  const selectedTeacherId = parsePositiveInteger(
+    searchParams.get("teacher_user_id"),
+  );
   const selectedStudent =
     students.find((student) => student.id === selectedStudentId) ?? null;
   const selectedParent =
     parents.find((parent) => parent.id === selectedParentId) ?? null;
+  const selectedTeacher =
+    teachers.find((teacher) => teacher.id === selectedTeacherId) ?? null;
   const selectedParentAlreadyLinked = Boolean(
     selectedParent &&
       currentAssignments?.parents.some((parent) => parent.id === selectedParent.id),
+  );
+  const selectedTeacherAlreadyLinked = Boolean(
+    selectedTeacher &&
+      currentAssignments?.teachers.some((teacher) => teacher.id === selectedTeacher.id),
   );
   const canAssignParent = Boolean(
     token &&
@@ -143,8 +157,48 @@ export function AdminAssignmentsPanel() {
       }
     }
 
+    async function loadTeachers() {
+      if (!token) {
+        if (!cancelled) {
+          setTeachers([]);
+          setIsTeachersLoading(false);
+        }
+        return;
+      }
+
+      setIsTeachersLoading(true);
+      setTeachersErrorMessage(null);
+
+      try {
+        const payload = await apiRequest<AdminUsersResponse>(
+          "/admin/users?role=teacher&is_active=true",
+          {
+            token,
+          },
+        );
+
+        if (!cancelled) {
+          setTeachers(payload.users);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          if (error instanceof ApiError) {
+            setTeachersErrorMessage(error.message);
+          } else {
+            setTeachersErrorMessage("Teachers could not be loaded.");
+          }
+          setTeachers([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsTeachersLoading(false);
+        }
+      }
+    }
+
     void loadStudents();
     void loadParents();
+    void loadTeachers();
 
     return () => {
       cancelled = true;
@@ -260,6 +314,33 @@ export function AdminAssignmentsPanel() {
     selectedParent,
   ]);
 
+  useEffect(() => {
+    if (
+      isTeachersLoading ||
+      teachersErrorMessage ||
+      teachers.length === 0 ||
+      selectedTeacher
+    ) {
+      return;
+    }
+
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "teacher_user_id",
+      value: String(teachers[0].id),
+    });
+  }, [
+    isTeachersLoading,
+    pathname,
+    router,
+    searchParams,
+    selectedTeacher,
+    teachers,
+    teachersErrorMessage,
+  ]);
+
   const handleStudentChange = (studentId: number) => {
     replaceQueryValue({
       pathname,
@@ -277,6 +358,16 @@ export function AdminAssignmentsPanel() {
       searchParams,
       key: "parent_user_id",
       value: String(parentId),
+    });
+  };
+
+  const handleTeacherChange = (teacherId: number) => {
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "teacher_user_id",
+      value: String(teacherId),
     });
   };
 
@@ -647,11 +738,93 @@ export function AdminAssignmentsPanel() {
             <div className="stack status-stack">
               <h3 className="section-title">Add teacher link</h3>
               <p className="status-note">
-                Teacher assignment belongs to the same student-centered workflow.
-                The next implementation slice will load active teachers and add
-                the teacher selector here.
+                This section prepares the teacher candidate for the selected
+                student. The actual <code>Assign teacher</code> submit action is
+                the next slice.
               </p>
             </div>
+
+            {isTeachersLoading ? (
+              <p className="status-note">
+                Loading teachers from{" "}
+                <code>/admin/users?role=teacher&amp;is_active=true</code>.
+              </p>
+            ) : null}
+
+            {teachersErrorMessage ? (
+              <p className="form-error" role="alert">
+                {teachersErrorMessage}
+              </p>
+            ) : null}
+
+            {!isTeachersLoading && !teachersErrorMessage && teachers.length === 0 ? (
+              <p className="status-note">
+                No active teacher users were returned by the backend.
+              </p>
+            ) : null}
+
+            {!isTeachersLoading && !teachersErrorMessage && teachers.length > 0 ? (
+              <>
+                <label className="field">
+                  <span className="field-label">
+                    Teacher candidate for {selectedStudent?.full_name ?? "this student"}
+                  </span>
+                  <select
+                    className="field-input"
+                    value={selectedTeacher ? String(selectedTeacher.id) : ""}
+                    onChange={(event) =>
+                      handleTeacherChange(Number(event.target.value))
+                    }
+                    aria-label="Choose the teacher candidate to assign"
+                    disabled={!selectedStudent}
+                  >
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.full_name} ({teacher.email})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <p className="status-note">
+                  The selected teacher lives in <code>?teacher_user_id=...</code>,
+                  so the candidate stays visible after refresh.
+                </p>
+
+                {selectedTeacherAlreadyLinked ? (
+                  <p className="status-note">
+                    {selectedTeacher?.full_name ?? "This teacher"} is already linked to{" "}
+                    {selectedStudent?.full_name ?? "this student"}.
+                  </p>
+                ) : null}
+
+                {selectedTeacher ? (
+                  <ul className="meta-list">
+                    <li className="meta-item">
+                      <span className="meta-label">Teacher id</span>
+                      {selectedTeacher.id}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Full name</span>
+                      {selectedTeacher.full_name}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Email</span>
+                      {selectedTeacher.email}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Role</span>
+                      {selectedTeacher.role}
+                    </li>
+                  </ul>
+                ) : (
+                  <p className="status-note">
+                    Pick a teacher next, then the following slice can submit the
+                    teacher link for {selectedStudent?.full_name ?? "the selected student"}.
+                  </p>
+                )}
+              </>
+            ) : null}
           </section>
         </div>
       </div>
