@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ApiError, apiRequest } from "../lib/api";
-import type { AdminStudentsResponse, StudentRecord } from "../lib/types";
+import type {
+  AdminAssignmentsResponse,
+  AdminStudentsResponse,
+  AdminUsersResponse,
+  CurrentUser,
+  StudentRecord,
+} from "../lib/types";
 import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
 import { UserSummary } from "./user-summary";
@@ -14,11 +20,33 @@ export function AdminAssignmentsPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [students, setStudents] = useState<StudentRecord[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const selectedStudentId = parseStudentId(searchParams.get("student_id"));
+  const [parents, setParents] = useState<CurrentUser[]>([]);
+  const [studentsErrorMessage, setStudentsErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [parentsErrorMessage, setParentsErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [assignmentsErrorMessage, setAssignmentsErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [isStudentsLoading, setIsStudentsLoading] = useState(true);
+  const [isParentsLoading, setIsParentsLoading] = useState(true);
+  const [isAssignmentsLoading, setIsAssignmentsLoading] = useState(false);
+  const [currentAssignments, setCurrentAssignments] =
+    useState<AdminAssignmentsResponse | null>(null);
+  const selectedStudentId = parsePositiveInteger(searchParams.get("student_id"));
+  const selectedParentId = parsePositiveInteger(
+    searchParams.get("parent_user_id"),
+  );
   const selectedStudent =
     students.find((student) => student.id === selectedStudentId) ?? null;
+  const selectedParent =
+    parents.find((parent) => parent.id === selectedParentId) ?? null;
+  const selectedParentAlreadyLinked = Boolean(
+    selectedParent &&
+      currentAssignments?.parents.some((parent) => parent.id === selectedParent.id),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -27,13 +55,13 @@ export function AdminAssignmentsPanel() {
       if (!token) {
         if (!cancelled) {
           setStudents([]);
-          setIsLoading(false);
+          setIsStudentsLoading(false);
         }
         return;
       }
 
-      setIsLoading(true);
-      setErrorMessage(null);
+      setIsStudentsLoading(true);
+      setStudentsErrorMessage(null);
 
       try {
         const payload = await apiRequest<AdminStudentsResponse>("/admin/students", {
@@ -46,20 +74,60 @@ export function AdminAssignmentsPanel() {
       } catch (error) {
         if (!cancelled) {
           if (error instanceof ApiError) {
-            setErrorMessage(error.message);
+            setStudentsErrorMessage(error.message);
           } else {
-            setErrorMessage("Students could not be loaded.");
+            setStudentsErrorMessage("Students could not be loaded.");
           }
           setStudents([]);
         }
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          setIsStudentsLoading(false);
+        }
+      }
+    }
+
+    async function loadParents() {
+      if (!token) {
+        if (!cancelled) {
+          setParents([]);
+          setIsParentsLoading(false);
+        }
+        return;
+      }
+
+      setIsParentsLoading(true);
+      setParentsErrorMessage(null);
+
+      try {
+        const payload = await apiRequest<AdminUsersResponse>(
+          "/admin/users?role=parent&is_active=true",
+          {
+            token,
+          },
+        );
+
+        if (!cancelled) {
+          setParents(payload.users);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          if (error instanceof ApiError) {
+            setParentsErrorMessage(error.message);
+          } else {
+            setParentsErrorMessage("Parents could not be loaded.");
+          }
+          setParents([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsParentsLoading(false);
         }
       }
     }
 
     void loadStudents();
+    void loadParents();
 
     return () => {
       cancelled = true;
@@ -67,27 +135,127 @@ export function AdminAssignmentsPanel() {
   }, [token]);
 
   useEffect(() => {
-    if (isLoading || errorMessage || students.length === 0 || selectedStudent) {
+    let cancelled = false;
+
+    async function loadAssignments() {
+      if (!token || !selectedStudent) {
+        if (!cancelled) {
+          setCurrentAssignments(null);
+          setAssignmentsErrorMessage(null);
+          setIsAssignmentsLoading(false);
+        }
+        return;
+      }
+
+      setIsAssignmentsLoading(true);
+      setAssignmentsErrorMessage(null);
+
+      try {
+        const payload = await apiRequest<AdminAssignmentsResponse>(
+          `/admin/assignments?student_id=${selectedStudent.id}`,
+          {
+            token,
+          },
+        );
+
+        if (!cancelled) {
+          setCurrentAssignments(payload);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          if (error instanceof ApiError) {
+            setAssignmentsErrorMessage(error.message);
+          } else {
+            setAssignmentsErrorMessage("Current assignments could not be loaded.");
+          }
+          setCurrentAssignments(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAssignmentsLoading(false);
+        }
+      }
+    }
+
+    void loadAssignments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStudent, token]);
+
+  useEffect(() => {
+    if (
+      isStudentsLoading ||
+      studentsErrorMessage ||
+      students.length === 0 ||
+      selectedStudent
+    ) {
       return;
     }
 
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("student_id", String(students[0].id));
-    router.replace(`${pathname}?${params.toString()}`);
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "student_id",
+      value: String(students[0].id),
+    });
   }, [
-    errorMessage,
-    isLoading,
+    isStudentsLoading,
     pathname,
     router,
     searchParams,
     selectedStudent,
+    studentsErrorMessage,
     students,
   ]);
 
+  useEffect(() => {
+    if (
+      isParentsLoading ||
+      parentsErrorMessage ||
+      parents.length === 0 ||
+      selectedParent
+    ) {
+      return;
+    }
+
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "parent_user_id",
+      value: String(parents[0].id),
+    });
+  }, [
+    isParentsLoading,
+    parents,
+    parentsErrorMessage,
+    pathname,
+    router,
+    searchParams,
+    selectedParent,
+  ]);
+
   const handleStudentChange = (studentId: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("student_id", String(studentId));
-    router.replace(`${pathname}?${params.toString()}`);
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "student_id",
+      value: String(studentId),
+    });
+  };
+
+  const handleParentChange = (parentId: number) => {
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "parent_user_id",
+      value: String(parentId),
+    });
   };
 
   return (
@@ -97,11 +265,12 @@ export function AdminAssignmentsPanel() {
           <div className="row space-between">
             <div className="stack">
               <p className="eyebrow">Admin assignments</p>
-              <h1 className="title">Choose the student before assigning adults.</h1>
+              <h1 className="title">Assign parents and teachers to one student at a time.</h1>
               <p className="subtitle">
-                First principle: assignments have to anchor on one student. This
-                slice loads <code>GET /admin/students</code>, stores the selected
-                student in the URL, and keeps that choice stable across refreshes.
+                First principle: this page is not a generic directory. It is a
+                student-centered assignment workflow. Pick one student, inspect
+                who is already linked, then prepare the next parent or teacher
+                assignment for that same student.
               </p>
             </div>
             <LogoutButton />
@@ -113,31 +282,36 @@ export function AdminAssignmentsPanel() {
         <div className="admin-assignments-layout">
           <section className="panel stack">
             <div className="stack form-header">
-              <h2 className="section-title">Student selector</h2>
+              <h2 className="section-title">Step 1. Choose the student</h2>
               <p className="status-note">
-                The dropdown options come directly from <code>GET /admin/students</code>.
+                The student is the anchor record. Every link shown or created on
+                the right side belongs to this selected student.
               </p>
             </div>
 
-            {isLoading ? (
+            {isStudentsLoading ? (
               <p className="status-note">
                 Loading students from <code>/admin/students</code>.
               </p>
             ) : null}
 
-            {errorMessage ? (
+            {studentsErrorMessage ? (
               <p className="form-error" role="alert">
-                {errorMessage}
+                {studentsErrorMessage}
               </p>
             ) : null}
 
-            {!isLoading && !errorMessage && students.length === 0 ? (
+            {!isStudentsLoading &&
+            !studentsErrorMessage &&
+            students.length === 0 ? (
               <p className="status-note">
                 No students were returned by the backend, so there is nothing to assign yet.
               </p>
             ) : null}
 
-            {!isLoading && !errorMessage && students.length > 0 ? (
+            {!isStudentsLoading &&
+            !studentsErrorMessage &&
+            students.length > 0 ? (
               <>
                 <label className="field">
                   <span className="field-label">Student</span>
@@ -161,52 +335,238 @@ export function AdminAssignmentsPanel() {
                   The selected student lives in <code>?student_id=...</code>, so a
                   refresh keeps the same assignment context.
                 </p>
+
+                <div className="stack status-stack">
+                  <h3 className="section-title">Selected student</h3>
+                  <p className="status-note">
+                    This is the exact student that the assignment actions will target.
+                  </p>
+                </div>
+
+                {selectedStudent ? (
+                  <ul className="meta-list">
+                    <li className="meta-item">
+                      <span className="meta-label">Student id</span>
+                      {selectedStudent.id}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Full name</span>
+                      {selectedStudent.full_name}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Active</span>
+                      <span
+                        className={
+                          selectedStudent.is_active
+                            ? "status-chip status-chip-success"
+                            : "status-chip status-chip-muted"
+                        }
+                      >
+                        {selectedStudent.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Created</span>
+                      {formatUtcTimestamp(selectedStudent.created_at_utc)}
+                    </li>
+                  </ul>
+                ) : (
+                  <p className="status-note">
+                    Pick a student first. The rest of the page depends on that choice.
+                  </p>
+                )}
               </>
             ) : null}
           </section>
 
           <section className="panel stack">
             <div className="stack status-stack">
-              <h2 className="section-title">Selected student</h2>
+              <h2 className="section-title">
+                Step 2. Review and prepare assignments for{" "}
+                {selectedStudent?.full_name ?? "the selected student"}
+              </h2>
               <p className="status-note">
-                This panel shows the exact student record that later assignment
-                actions will attach to.
+                The correct workflow is: inspect current links first, then pick a
+                new parent or teacher candidate for this same student.
               </p>
             </div>
 
             {!selectedStudent ? (
               <p className="status-note">
-                Pick a student first. The next roadmap slice will fetch parents,
-                teachers, and current assignment links for this student.
+                Choose a student on the left first. Then choose which parent should
+                be linked to that student.
               </p>
-            ) : (
-              <ul className="meta-list">
-                <li className="meta-item">
-                  <span className="meta-label">Student id</span>
-                  {selectedStudent.id}
-                </li>
-                <li className="meta-item">
-                  <span className="meta-label">Full name</span>
-                  {selectedStudent.full_name}
-                </li>
-                <li className="meta-item">
-                  <span className="meta-label">Active</span>
-                  <span
-                    className={
-                      selectedStudent.is_active
-                        ? "status-chip status-chip-success"
-                        : "status-chip status-chip-muted"
-                    }
-                  >
-                    {selectedStudent.is_active ? "Active" : "Inactive"}
+            ) : null}
+
+            {selectedStudent ? (
+              <div className="stack">
+                <div className="stack status-stack">
+                  <h3 className="section-title">Current links</h3>
+                  <p className="status-note">
+                    This read comes from{" "}
+                    <code>/admin/assignments?student_id={selectedStudent.id}</code>,
+                    so the admin can see who is already linked before assigning anyone else.
+                  </p>
+                </div>
+
+                {isAssignmentsLoading ? (
+                  <p className="status-note">
+                    Loading current links for {selectedStudent.full_name}.
+                  </p>
+                ) : null}
+
+                {assignmentsErrorMessage ? (
+                  <p className="form-error" role="alert">
+                    {assignmentsErrorMessage}
+                  </p>
+                ) : null}
+
+                {!isAssignmentsLoading && !assignmentsErrorMessage ? (
+                  <>
+                    <div className="stack status-stack">
+                      <h3 className="section-title">Linked parents</h3>
+                      <p className="status-note">
+                        {currentAssignments?.parents.length
+                          ? `This student already has ${currentAssignments.parents.length} parent link${currentAssignments.parents.length === 1 ? "" : "s"}.`
+                          : "This student does not have any parent links yet."}
+                      </p>
+                    </div>
+
+                    {currentAssignments?.parents.length ? (
+                      <ul className="meta-list">
+                        {currentAssignments.parents.map((parent) => (
+                          <li className="meta-item" key={parent.id}>
+                            <span className="meta-label">Parent</span>
+                            {parent.full_name} ({parent.email})
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    <div className="stack status-stack">
+                      <h3 className="section-title">Linked teachers</h3>
+                      <p className="status-note">
+                        {currentAssignments?.teachers.length
+                          ? `This student already has ${currentAssignments.teachers.length} teacher link${currentAssignments.teachers.length === 1 ? "" : "s"}.`
+                          : "This student does not have any teacher links yet."}
+                      </p>
+                    </div>
+
+                    {currentAssignments?.teachers.length ? (
+                      <ul className="meta-list">
+                        {currentAssignments.teachers.map((teacher) => (
+                          <li className="meta-item" key={teacher.id}>
+                            <span className="meta-label">Teacher</span>
+                            {teacher.full_name} ({teacher.email})
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="stack status-stack">
+              <h3 className="section-title">Add parent link</h3>
+              <p className="status-note">
+                This section prepares the parent candidate for the selected
+                student. The actual <code>Assign parent</code> submit action is
+                the next slice.
+              </p>
+            </div>
+
+            {isParentsLoading ? (
+              <p className="status-note">
+                Loading parents from{" "}
+                <code>/admin/users?role=parent&amp;is_active=true</code>.
+              </p>
+            ) : null}
+
+            {parentsErrorMessage ? (
+              <p className="form-error" role="alert">
+                {parentsErrorMessage}
+              </p>
+            ) : null}
+
+            {!isParentsLoading && !parentsErrorMessage && parents.length === 0 ? (
+              <p className="status-note">
+                No active parent users were returned by the backend.
+              </p>
+            ) : null}
+
+            {!isParentsLoading && !parentsErrorMessage && parents.length > 0 ? (
+              <>
+                <label className="field">
+                  <span className="field-label">
+                    Parent candidate for {selectedStudent?.full_name ?? "this student"}
                   </span>
-                </li>
-                <li className="meta-item">
-                  <span className="meta-label">Created</span>
-                  {formatUtcTimestamp(selectedStudent.created_at_utc)}
-                </li>
-              </ul>
-            )}
+                  <select
+                    className="field-input"
+                    value={selectedParent ? String(selectedParent.id) : ""}
+                    onChange={(event) =>
+                      handleParentChange(Number(event.target.value))
+                    }
+                    aria-label="Choose the parent candidate to assign"
+                    disabled={!selectedStudent}
+                  >
+                    {parents.map((parent) => (
+                      <option key={parent.id} value={parent.id}>
+                        {parent.full_name} ({parent.email})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <p className="status-note">
+                  The selected parent lives in <code>?parent_user_id=...</code>,
+                  so the candidate stays visible after refresh.
+                </p>
+
+                {selectedParentAlreadyLinked ? (
+                  <p className="form-success" role="status">
+                    {selectedParent?.full_name ?? "This parent"} is already linked to{" "}
+                    {selectedStudent?.full_name ?? "this student"}.
+                  </p>
+                ) : null}
+
+                {selectedParent ? (
+                  <ul className="meta-list">
+                    <li className="meta-item">
+                      <span className="meta-label">Parent id</span>
+                      {selectedParent.id}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Full name</span>
+                      {selectedParent.full_name}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Email</span>
+                      {selectedParent.email}
+                    </li>
+                    <li className="meta-item">
+                      <span className="meta-label">Role</span>
+                      {selectedParent.role}
+                    </li>
+                  </ul>
+                ) : (
+                  <p className="status-note">
+                    Pick a parent next. The following roadmap slice can attach this
+                    parent to {selectedStudent?.full_name ?? "the selected student"}{" "}
+                    with a real POST request.
+                  </p>
+                )}
+              </>
+            ) : null}
+
+            <div className="stack status-stack">
+              <h3 className="section-title">Add teacher link</h3>
+              <p className="status-note">
+                Teacher assignment belongs to the same student-centered workflow.
+                The next implementation slice will load active teachers and add
+                the teacher selector here.
+              </p>
+            </div>
           </section>
         </div>
       </div>
@@ -214,7 +574,7 @@ export function AdminAssignmentsPanel() {
   );
 }
 
-function parseStudentId(value: string | null) {
+function parsePositiveInteger(value: string | null) {
   if (!value) {
     return null;
   }
@@ -226,6 +586,24 @@ function parseStudentId(value: string | null) {
   }
 
   return numericValue;
+}
+
+function replaceQueryValue({
+  pathname,
+  router,
+  searchParams,
+  key,
+  value,
+}: {
+  pathname: string;
+  router: ReturnType<typeof useRouter>;
+  searchParams: ReturnType<typeof useSearchParams>;
+  key: string;
+  value: string;
+}) {
+  const params = new URLSearchParams(searchParams.toString());
+  params.set(key, value);
+  router.replace(`${pathname}?${params.toString()}`);
 }
 
 function formatUtcTimestamp(value: string) {

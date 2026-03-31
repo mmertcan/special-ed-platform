@@ -67,3 +67,31 @@ export type AdminCreateStudentResponse = {
   ok: true;
   student: StudentRecord;
 };
+
+export type AssignmentStudentSummary = {
+  id: number;
+  full_name: string;
+  is_active: boolean;
+};
+
+export type AssignmentLinkedParent = {
+  id: number;
+  full_name: string;
+  email: string;
+  is_active: boolean;
+  relationship_label: string | null;
+};
+
+export type AssignmentLinkedTeacher = {
+  id: number;
+  full_name: string;
+  email: string;
+  is_active: boolean;
+};
+
+export type AdminAssignmentsResponse = {
+  ok: true;
+  student: AssignmentStudentSummary;
+  parents: AssignmentLinkedParent[];
+  teachers: AssignmentLinkedTeacher[];
+};
