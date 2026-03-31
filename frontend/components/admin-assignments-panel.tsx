@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ApiError, apiRequest } from "../lib/api";
-import type { AdminStudentsResponse, StudentRecord } from "../lib/types";
+import type {
+  AdminStudentsResponse,
+  AdminUsersResponse,
+  CurrentUser,
+  StudentRecord,
+} from "../lib/types";
 import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
 import { UserSummary } from "./user-summary";
@@ -14,11 +19,23 @@ export function AdminAssignmentsPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [students, setStudents] = useState<StudentRecord[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const selectedStudentId = parseStudentId(searchParams.get("student_id"));
+  const [parents, setParents] = useState<CurrentUser[]>([]);
+  const [studentsErrorMessage, setStudentsErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [parentsErrorMessage, setParentsErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [isStudentsLoading, setIsStudentsLoading] = useState(true);
+  const [isParentsLoading, setIsParentsLoading] = useState(true);
+  const selectedStudentId = parsePositiveInteger(searchParams.get("student_id"));
+  const selectedParentId = parsePositiveInteger(
+    searchParams.get("parent_user_id"),
+  );
   const selectedStudent =
     students.find((student) => student.id === selectedStudentId) ?? null;
+  const selectedParent =
+    parents.find((parent) => parent.id === selectedParentId) ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -27,13 +44,13 @@ export function AdminAssignmentsPanel() {
       if (!token) {
         if (!cancelled) {
           setStudents([]);
-          setIsLoading(false);
+          setIsStudentsLoading(false);
         }
         return;
       }
 
-      setIsLoading(true);
-      setErrorMessage(null);
+      setIsStudentsLoading(true);
+      setStudentsErrorMessage(null);
 
       try {
         const payload = await apiRequest<AdminStudentsResponse>("/admin/students", {
@@ -46,20 +63,60 @@ export function AdminAssignmentsPanel() {
       } catch (error) {
         if (!cancelled) {
           if (error instanceof ApiError) {
-            setErrorMessage(error.message);
+            setStudentsErrorMessage(error.message);
           } else {
-            setErrorMessage("Students could not be loaded.");
+            setStudentsErrorMessage("Students could not be loaded.");
           }
           setStudents([]);
         }
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          setIsStudentsLoading(false);
+        }
+      }
+    }
+
+    async function loadParents() {
+      if (!token) {
+        if (!cancelled) {
+          setParents([]);
+          setIsParentsLoading(false);
+        }
+        return;
+      }
+
+      setIsParentsLoading(true);
+      setParentsErrorMessage(null);
+
+      try {
+        const payload = await apiRequest<AdminUsersResponse>(
+          "/admin/users?role=parent&is_active=true",
+          {
+            token,
+          },
+        );
+
+        if (!cancelled) {
+          setParents(payload.users);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          if (error instanceof ApiError) {
+            setParentsErrorMessage(error.message);
+          } else {
+            setParentsErrorMessage("Parents could not be loaded.");
+          }
+          setParents([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsParentsLoading(false);
         }
       }
     }
 
     void loadStudents();
+    void loadParents();
 
     return () => {
       cancelled = true;
@@ -67,27 +124,77 @@ export function AdminAssignmentsPanel() {
   }, [token]);
 
   useEffect(() => {
-    if (isLoading || errorMessage || students.length === 0 || selectedStudent) {
+    if (
+      isStudentsLoading ||
+      studentsErrorMessage ||
+      students.length === 0 ||
+      selectedStudent
+    ) {
       return;
     }
 
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("student_id", String(students[0].id));
-    router.replace(`${pathname}?${params.toString()}`);
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "student_id",
+      value: String(students[0].id),
+    });
   }, [
-    errorMessage,
-    isLoading,
+    isStudentsLoading,
     pathname,
     router,
     searchParams,
     selectedStudent,
+    studentsErrorMessage,
     students,
   ]);
 
+  useEffect(() => {
+    if (
+      isParentsLoading ||
+      parentsErrorMessage ||
+      parents.length === 0 ||
+      selectedParent
+    ) {
+      return;
+    }
+
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "parent_user_id",
+      value: String(parents[0].id),
+    });
+  }, [
+    isParentsLoading,
+    parents,
+    parentsErrorMessage,
+    pathname,
+    router,
+    searchParams,
+    selectedParent,
+  ]);
+
   const handleStudentChange = (studentId: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("student_id", String(studentId));
-    router.replace(`${pathname}?${params.toString()}`);
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "student_id",
+      value: String(studentId),
+    });
+  };
+
+  const handleParentChange = (parentId: number) => {
+    replaceQueryValue({
+      pathname,
+      router,
+      searchParams,
+      key: "parent_user_id",
+      value: String(parentId),
+    });
   };
 
   return (
@@ -100,8 +207,9 @@ export function AdminAssignmentsPanel() {
               <h1 className="title">Choose the student before assigning adults.</h1>
               <p className="subtitle">
                 First principle: assignments have to anchor on one student. This
-                slice loads <code>GET /admin/students</code>, stores the selected
-                student in the URL, and keeps that choice stable across refreshes.
+                slice loads the student list and the active parent list, stores
+                both current choices in the URL, and keeps those choices stable
+                across refreshes.
               </p>
             </div>
             <LogoutButton />
@@ -119,25 +227,29 @@ export function AdminAssignmentsPanel() {
               </p>
             </div>
 
-            {isLoading ? (
+            {isStudentsLoading ? (
               <p className="status-note">
                 Loading students from <code>/admin/students</code>.
               </p>
             ) : null}
 
-            {errorMessage ? (
+            {studentsErrorMessage ? (
               <p className="form-error" role="alert">
-                {errorMessage}
+                {studentsErrorMessage}
               </p>
             ) : null}
 
-            {!isLoading && !errorMessage && students.length === 0 ? (
+            {!isStudentsLoading &&
+            !studentsErrorMessage &&
+            students.length === 0 ? (
               <p className="status-note">
                 No students were returned by the backend, so there is nothing to assign yet.
               </p>
             ) : null}
 
-            {!isLoading && !errorMessage && students.length > 0 ? (
+            {!isStudentsLoading &&
+            !studentsErrorMessage &&
+            students.length > 0 ? (
               <>
                 <label className="field">
                   <span className="field-label">Student</span>
@@ -160,6 +272,60 @@ export function AdminAssignmentsPanel() {
                 <p className="status-note">
                   The selected student lives in <code>?student_id=...</code>, so a
                   refresh keeps the same assignment context.
+                </p>
+              </>
+            ) : null}
+
+            <div className="stack form-header">
+              <h2 className="section-title">Parent selector</h2>
+              <p className="status-note">
+                This dropdown is intentionally narrow: it only loads active
+                parents through <code>GET /admin/users?role=parent&amp;is_active=true</code>.
+              </p>
+            </div>
+
+            {isParentsLoading ? (
+              <p className="status-note">
+                Loading parents from{" "}
+                <code>/admin/users?role=parent&amp;is_active=true</code>.
+              </p>
+            ) : null}
+
+            {parentsErrorMessage ? (
+              <p className="form-error" role="alert">
+                {parentsErrorMessage}
+              </p>
+            ) : null}
+
+            {!isParentsLoading && !parentsErrorMessage && parents.length === 0 ? (
+              <p className="status-note">
+                No active parent users were returned by the backend.
+              </p>
+            ) : null}
+
+            {!isParentsLoading && !parentsErrorMessage && parents.length > 0 ? (
+              <>
+                <label className="field">
+                  <span className="field-label">Parent</span>
+                  <select
+                    className="field-input"
+                    value={selectedParent ? String(selectedParent.id) : ""}
+                    onChange={(event) =>
+                      handleParentChange(Number(event.target.value))
+                    }
+                    aria-label="Choose the parent candidate to assign"
+                  >
+                    {parents.map((parent) => (
+                      <option key={parent.id} value={parent.id}>
+                        {parent.full_name} ({parent.email})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <p className="status-note">
+                  The selected parent lives in <code>?parent_user_id=...</code>,
+                  so the candidate stays visible after refresh.
                 </p>
               </>
             ) : null}
@@ -207,6 +373,40 @@ export function AdminAssignmentsPanel() {
                 </li>
               </ul>
             )}
+
+            <div className="stack status-stack">
+              <h2 className="section-title">Selected parent candidate</h2>
+              <p className="status-note">
+                This is the exact parent record that the future assign action
+                will send to the backend.
+              </p>
+            </div>
+
+            {!selectedParent ? (
+              <p className="status-note">
+                Pick a parent next. The following roadmap slice can attach this
+                parent to the current student with a real POST request.
+              </p>
+            ) : (
+              <ul className="meta-list">
+                <li className="meta-item">
+                  <span className="meta-label">Parent id</span>
+                  {selectedParent.id}
+                </li>
+                <li className="meta-item">
+                  <span className="meta-label">Full name</span>
+                  {selectedParent.full_name}
+                </li>
+                <li className="meta-item">
+                  <span className="meta-label">Email</span>
+                  {selectedParent.email}
+                </li>
+                <li className="meta-item">
+                  <span className="meta-label">Role</span>
+                  {selectedParent.role}
+                </li>
+              </ul>
+            )}
           </section>
         </div>
       </div>
@@ -214,7 +414,7 @@ export function AdminAssignmentsPanel() {
   );
 }
 
-function parseStudentId(value: string | null) {
+function parsePositiveInteger(value: string | null) {
   if (!value) {
     return null;
   }
@@ -226,6 +426,24 @@ function parseStudentId(value: string | null) {
   }
 
   return numericValue;
+}
+
+function replaceQueryValue({
+  pathname,
+  router,
+  searchParams,
+  key,
+  value,
+}: {
+  pathname: string;
+  router: ReturnType<typeof useRouter>;
+  searchParams: ReturnType<typeof useSearchParams>;
+  key: string;
+  value: string;
+}) {
+  const params = new URLSearchParams(searchParams.toString());
+  params.set(key, value);
+  router.replace(`${pathname}?${params.toString()}`);
 }
 
 function formatUtcTimestamp(value: string) {

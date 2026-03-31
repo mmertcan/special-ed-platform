@@ -198,10 +198,10 @@ type AuthState = {
 ### `/admin/assignments`
 - [x] Create a protected placeholder route for `/admin/assignments`
 - [x] Fetch students from `GET /admin/students`
-- [ ] Fetch parents from `GET /admin/users?role=parent&is_active=true`
+- [x] Fetch parents from `GET /admin/users?role=parent&is_active=true`
 - [ ] Fetch teachers from `GET /admin/users?role=teacher&is_active=true`
 - [x] Build student selector
-- [ ] Build parent selector
+- [x] Build parent selector
 - [ ] Build teacher selector
 - [ ] Add "Assign parent" action:
 - [ ] POST to `POST /admin/assign-parent`
