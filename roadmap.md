@@ -126,14 +126,14 @@ type AuthState = {
 
 ### `/admin/users`
 - [x] Create a protected placeholder route for `/admin/users`
-- [ ] Fetch `GET /admin/users` on page load
-- [ ] Render table or list of users
-- [ ] Show columns:
-- [ ] full name
-- [ ] email
-- [ ] role
-- [ ] active status
-- [ ] created time
+- [x] Fetch `GET /admin/users` on page load
+- [x] Render table or list of users
+- [x] Show columns:
+- [x] full name
+- [x] email
+- [x] role
+- [x] active status
+- [x] created time
 - [ ] Add role filter:
 - [ ] all
 - [ ] admin
