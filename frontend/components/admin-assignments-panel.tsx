@@ -7,6 +7,8 @@ import type {
   AdminAssignmentsResponse,
   AdminStudentsResponse,
   AdminUsersResponse,
+  AssignParentRequest,
+  AssignParentResponse,
   CurrentUser,
   StudentRecord,
 } from "../lib/types";
@@ -30,9 +32,17 @@ export function AdminAssignmentsPanel() {
   const [assignmentsErrorMessage, setAssignmentsErrorMessage] = useState<string | null>(
     null,
   );
+  const [assignParentErrorMessage, setAssignParentErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [assignParentSuccessMessage, setAssignParentSuccessMessage] = useState<
+    string | null
+  >(null);
   const [isStudentsLoading, setIsStudentsLoading] = useState(true);
   const [isParentsLoading, setIsParentsLoading] = useState(true);
   const [isAssignmentsLoading, setIsAssignmentsLoading] = useState(false);
+  const [isAssigningParent, setIsAssigningParent] = useState(false);
+  const [assignmentsRefreshKey, setAssignmentsRefreshKey] = useState(0);
   const [currentAssignments, setCurrentAssignments] =
     useState<AdminAssignmentsResponse | null>(null);
   const selectedStudentId = parsePositiveInteger(searchParams.get("student_id"));
@@ -46,6 +56,13 @@ export function AdminAssignmentsPanel() {
   const selectedParentAlreadyLinked = Boolean(
     selectedParent &&
       currentAssignments?.parents.some((parent) => parent.id === selectedParent.id),
+  );
+  const canAssignParent = Boolean(
+    token &&
+      selectedStudent &&
+      selectedParent &&
+      !selectedParentAlreadyLinked &&
+      !isAssigningParent,
   );
 
   useEffect(() => {
@@ -182,7 +199,12 @@ export function AdminAssignmentsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [selectedStudent, token]);
+  }, [assignmentsRefreshKey, selectedStudent, token]);
+
+  useEffect(() => {
+    setAssignParentErrorMessage(null);
+    setAssignParentSuccessMessage(null);
+  }, [selectedParentId, selectedStudentId]);
 
   useEffect(() => {
     if (
@@ -256,6 +278,50 @@ export function AdminAssignmentsPanel() {
       key: "parent_user_id",
       value: String(parentId),
     });
+  };
+
+  const handleAssignParent = async () => {
+    if (!token || !selectedStudent || !selectedParent) {
+      setAssignParentErrorMessage("Choose a student and a parent first.");
+      return;
+    }
+
+    const payload: AssignParentRequest = {
+      parent_user_id: selectedParent.id,
+      student_id: selectedStudent.id,
+    };
+
+    setIsAssigningParent(true);
+    setAssignParentErrorMessage(null);
+    setAssignParentSuccessMessage(null);
+
+    try {
+      const response = await apiRequest<AssignParentResponse>("/admin/assign-parent", {
+        method: "POST",
+        token,
+        body: payload,
+      });
+
+      setAssignParentSuccessMessage(
+        `Linked ${selectedParent.full_name} to ${selectedStudent.full_name}.`,
+      );
+      setAssignmentsRefreshKey((current) => current + 1);
+
+      if (
+        response.parent_user_id !== selectedParent.id ||
+        response.student_id !== selectedStudent.id
+      ) {
+        setAssignParentErrorMessage("Unexpected assign-parent response received.");
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setAssignParentErrorMessage(error.message);
+      } else {
+        setAssignParentErrorMessage("Parent link could not be created.");
+      }
+    } finally {
+      setIsAssigningParent(false);
+    }
   };
 
   return (
@@ -470,9 +536,8 @@ export function AdminAssignmentsPanel() {
             <div className="stack status-stack">
               <h3 className="section-title">Add parent link</h3>
               <p className="status-note">
-                This section prepares the parent candidate for the selected
-                student. The actual <code>Assign parent</code> submit action is
-                the next slice.
+                This section sends the real <code>POST /admin/assign-parent</code>{" "}
+                request for the selected student and selected parent.
               </p>
             </div>
 
@@ -524,7 +589,7 @@ export function AdminAssignmentsPanel() {
                 </p>
 
                 {selectedParentAlreadyLinked ? (
-                  <p className="form-success" role="status">
+                  <p className="status-note">
                     {selectedParent?.full_name ?? "This parent"} is already linked to{" "}
                     {selectedStudent?.full_name ?? "this student"}.
                   </p>
@@ -551,11 +616,31 @@ export function AdminAssignmentsPanel() {
                   </ul>
                 ) : (
                   <p className="status-note">
-                    Pick a parent next. The following roadmap slice can attach this
-                    parent to {selectedStudent?.full_name ?? "the selected student"}{" "}
-                    with a real POST request.
+                    Pick a parent next, then submit the link for{" "}
+                    {selectedStudent?.full_name ?? "the selected student"}.
                   </p>
                 )}
+
+                {assignParentSuccessMessage ? (
+                  <p className="form-success" role="status">
+                    {assignParentSuccessMessage}
+                  </p>
+                ) : null}
+
+                {assignParentErrorMessage ? (
+                  <p className="form-error" role="alert">
+                    {assignParentErrorMessage}
+                  </p>
+                ) : null}
+
+                <button
+                  className="button form-submit"
+                  type="button"
+                  onClick={handleAssignParent}
+                  disabled={!canAssignParent}
+                >
+                  {isAssigningParent ? "Assigning parent..." : "Assign parent"}
+                </button>
               </>
             ) : null}
 
