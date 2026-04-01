@@ -87,18 +87,18 @@ Assessment date: `2026-04-01`
 - [x] Admin assignments page shows current teacher and parent assignments for the selected student
 
 ### Shared frontend feed contracts
-- [ ] Add a dedicated frontend response type for `GET /me/students`
-- [ ] Add a dedicated frontend type for daily feed entries
-- [ ] Add a dedicated frontend type for daily feed media items
+- [x] Add a dedicated frontend response type for `GET /me/students`
+- [x] Add a dedicated frontend type for daily feed entries
+- [x] Add a dedicated frontend type for daily feed media items
 
 ### Phase 2 — Teacher text-only feed MVP
 - [x] Teacher landing page exists and is protected
 - [x] `/teacher/students` route exists
-- [ ] `/teacher/students` fetches assigned students from `GET /me/students`
-- [ ] `/teacher/students` renders assigned students
-- [ ] `/teacher/students` shows an empty state when no students are assigned
-- [ ] `/teacher/students` links each student to `/teacher/students/[studentId]`
-- [ ] Create `/teacher/students/[studentId]`
+- [x] `/teacher/students` fetches assigned students from `GET /me/students`
+- [x] `/teacher/students` renders assigned students
+- [x] `/teacher/students` shows an empty state when no students are assigned
+- [x] `/teacher/students` links each student to `/teacher/students/[studentId]`
+- [x] Create `/teacher/students/[studentId]`
 - [ ] Verify that the route `studentId` belongs to the logged-in teacher
 - [ ] Fetch feed history from `GET /students/{student_id}/daily-feed`
 - [ ] Render newest-first feed entries for the selected student
