@@ -99,9 +99,9 @@ Assessment date: `2026-04-01`
 - [x] `/teacher/students` shows an empty state when no students are assigned
 - [x] `/teacher/students` links each student to `/teacher/students/[studentId]`
 - [x] Create `/teacher/students/[studentId]`
-- [ ] Verify that the route `studentId` belongs to the logged-in teacher
-- [ ] Fetch feed history from `GET /students/{student_id}/daily-feed`
-- [ ] Render newest-first feed entries for the selected student
+- [x] Verify that the route `studentId` belongs to the logged-in teacher
+- [x] Fetch feed history from `GET /students/{student_id}/daily-feed`
+- [x] Render newest-first feed entries for the selected student
 - [ ] Build a daily note composer
 - [ ] Post text notes with `POST /students/{student_id}/daily-feed`
 - [ ] On success, clear the draft and prepend the new note
