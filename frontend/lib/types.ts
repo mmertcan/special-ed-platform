@@ -53,6 +53,12 @@ export type StudentRecord = {
   created_at_utc: string;
 };
 
+export type ViewerStudent = {
+  id: number;
+  full_name: string;
+  is_active: boolean;
+};
+
 export type AdminStudentsResponse = {
   ok: true;
   students: StudentRecord[];
@@ -118,4 +124,38 @@ export type AssignTeacherResponse = {
   assigned_by_user_id: number;
   teacher_user_id: number;
   student_id: number;
+};
+
+export type MeStudentsResponse = {
+  ok: true;
+  viewer_role: "teacher" | "parent";
+  viewer_user_id: number;
+  students: ViewerStudent[];
+};
+
+export type DailyFeedMediaItem = {
+  id: number;
+  post_id: number;
+  storage_key: string;
+  media_type: "image" | "video";
+  created_at_utc: string;
+};
+
+export type DailyFeedEntry = {
+  id: number;
+  student_id: number;
+  body: string;
+  posted_at_utc: string;
+  updated_at_utc?: string | null;
+  author_user_id?: number;
+  author_role?: UserRole;
+  media_items?: DailyFeedMediaItem[];
+};
+
+export type DailyFeedResponse = {
+  ok: true;
+  student_id: number;
+  viewer_role: "teacher" | "parent";
+  viewer_user_id: number;
+  entries: DailyFeedEntry[];
 };
