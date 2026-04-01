@@ -159,3 +159,12 @@ export type DailyFeedResponse = {
   viewer_user_id: number;
   entries: DailyFeedEntry[];
 };
+
+export type DailyFeedCreateRequest = {
+  body: string;
+};
+
+export type DailyFeedCreateResponse = {
+  ok: true;
+  post: DailyFeedEntry;
+};

@@ -4,7 +4,14 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError, apiRequest } from "../lib/api";
-import type { DailyFeedEntry, DailyFeedResponse, MeStudentsResponse, ViewerStudent } from "../lib/types";
+import type {
+  DailyFeedCreateRequest,
+  DailyFeedCreateResponse,
+  DailyFeedEntry,
+  DailyFeedResponse,
+  MeStudentsResponse,
+  ViewerStudent,
+} from "../lib/types";
 import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
 import { UserSummary } from "./user-summary";
@@ -18,8 +25,16 @@ export function TeacherStudentDetailPanel() {
     null,
   );
   const [feedErrorMessage, setFeedErrorMessage] = useState<string | null>(null);
+  const [composerDraft, setComposerDraft] = useState("");
+  const [composerErrorMessage, setComposerErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [composerSuccessMessage, setComposerSuccessMessage] = useState<string | null>(
+    null,
+  );
   const [isStudentsLoading, setIsStudentsLoading] = useState(true);
   const [isFeedLoading, setIsFeedLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const selectedStudentId = parsePositiveInteger(params.studentId);
   const selectedStudent =
     students.find((student) => student.id === selectedStudentId) ?? null;
@@ -120,6 +135,54 @@ export function TeacherStudentDetailPanel() {
     };
   }, [selectedStudent, token]);
 
+  useEffect(() => {
+    setComposerDraft("");
+    setComposerErrorMessage(null);
+    setComposerSuccessMessage(null);
+  }, [selectedStudentId]);
+
+  const handleCreateNote = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!token || !selectedStudent) {
+      setComposerErrorMessage("Choose a valid assigned student first.");
+      return;
+    }
+
+    const payload: DailyFeedCreateRequest = {
+      body: composerDraft,
+    };
+
+    setIsSubmitting(true);
+    setComposerErrorMessage(null);
+    setComposerSuccessMessage(null);
+
+    try {
+      const response = await apiRequest<DailyFeedCreateResponse>(
+        `/students/${selectedStudent.id}/daily-feed`,
+        {
+          method: "POST",
+          token,
+          body: payload,
+        },
+      );
+
+      setFeedEntries((current) => [response.post, ...current]);
+      setComposerDraft("");
+      setComposerSuccessMessage(
+        `Posted a new daily note for ${selectedStudent.full_name}.`,
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setComposerErrorMessage(error.message);
+      } else {
+        setComposerErrorMessage("Daily note could not be created.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <main className="app-shell">
       <div className="container stack">
@@ -205,6 +268,54 @@ export function TeacherStudentDetailPanel() {
               </li>
             </ul>
           ) : null}
+        </section>
+
+        <section className="panel stack">
+          <div className="stack status-stack">
+            <h2 className="section-title">Daily note composer</h2>
+            <p className="status-note">
+              This form sends <code>POST /students/{selectedStudent?.id ?? "studentId"}/daily-feed</code>.
+              On success it clears the draft and prepends the new note to the
+              history below.
+            </p>
+          </div>
+
+          {!selectedStudent ? (
+            <p className="status-note">
+              The composer is available only after the route student id is verified.
+            </p>
+          ) : (
+            <form className="stack" onSubmit={handleCreateNote}>
+              <label className="field">
+                <span className="field-label">Daily note</span>
+                <textarea
+                  className="field-input"
+                  rows={5}
+                  value={composerDraft}
+                  onChange={(event) => setComposerDraft(event.target.value)}
+                  placeholder="Bugun iletisim calismasinda guzel ilerleme oldu."
+                  disabled={isSubmitting}
+                  required
+                />
+              </label>
+
+              {composerSuccessMessage ? (
+                <p className="form-success" role="status">
+                  {composerSuccessMessage}
+                </p>
+              ) : null}
+
+              {composerErrorMessage ? (
+                <p className="form-error" role="alert">
+                  {composerErrorMessage}
+                </p>
+              ) : null}
+
+              <button className="button form-submit" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Posting note..." : "Post daily note"}
+              </button>
+            </form>
+          )}
         </section>
 
         <section className="panel stack">
