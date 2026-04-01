@@ -39,381 +39,120 @@
 - [x] POST /admin/students
 - [x] GET /admin/students
 
-## Frontend implementation checklist — page by page
+## Frontend MVP build checklist
+
+Assessment date: `2026-04-01`
 
 ### First principle
-- A frontend page is just 4 things combined:
-- [ ] route
-- [ ] UI state
-- [ ] API call
-- [ ] success and error behavior
+- A frontend feature is only usable when these 4 pieces exist together:
+- [x] route
+- [x] auth and role protection
+- [ ] real feature data flow
+- [ ] success, empty, and error behavior for the actual MVP task
 
-### Shared frontend foundation
-- [x] Create a Next.js app
-- [x] Choose App Router structure under `app/`
-- [x] Add a shared fetch helper that attaches `Authorization: Bearer <token>`
-- [x] Store session token in `localStorage` for MVP
-- [x] Create a `CurrentUser` type:
-
-```ts
-type CurrentUser = {
-  id: number
-  role: "admin" | "teacher" | "parent"
-  full_name: string
-  email: string
-  is_active: boolean
-  created_at_utc: string
-}
-```
-
-- [x] Create an auth store or auth context with this state shape:
-
-```ts
-type AuthState = {
-  token: string | null
-  currentUser: CurrentUser | null
-  isBooting: boolean
-  isAuthenticated: boolean
-}
-```
-
-- [x] On app load:
-- [x] read token from `localStorage`
-- [x] if token exists, call `GET /me`
-- [x] if token is valid, store `currentUser`
-- [x] if token is invalid, clear token and send user to `/login`
-- [x] Create a role router:
+### Foundation already present in the codebase
+- [x] Next.js App Router frontend exists
+- [x] Shared `apiRequest()` helper exists for authenticated JSON requests
+- [x] Session token is stored in `localStorage`
+- [x] Auth provider restores the session through `GET /me`
+- [x] Role router exists:
 - [x] admin -> `/admin`
 - [x] teacher -> `/teacher`
 - [x] parent -> `/parent/feed`
-- [x] Create route guards:
-- [x] unauthenticated users go to `/login`
-- [x] authenticated users cannot open `/login`
-- [x] admin-only pages reject teacher and parent users
-- [x] teacher-only pages reject admin and parent users
-- [x] parent-only pages reject admin and teacher users
-- [x] Create shared UI states:
-- [x] loading screen while restoring session
-- [x] empty state
-- [x] error banner
-- [x] logout button that calls `POST /auth/logout`, clears local token, and routes to `/login`
+- [x] Protected routes exist for admin, teacher, and parent pages
+- [x] Public-only login guard exists
+- [x] Login form uses the real `POST /auth/login` flow
+- [x] Logout button uses the real `POST /auth/logout` flow
 
-### `/login`
-- [x] Build login form with `email` and `password`
-- [x] Add submit loading state
-- [x] POST form to `POST /auth/login`
-- [x] On success:
-- [x] store returned token in `localStorage`
-- [x] store returned user in auth state
-- [x] route by `user.role`
-- [x] On invalid credentials:
-- [x] show backend error message
-- [x] keep user on `/login`
-- [x] If already logged in, immediately redirect by role
-- [x] Acceptance check:
-- [x] admin lands on `/admin`
-- [x] teacher lands on `/teacher`
-- [x] parent lands on `/parent/feed`
+### Phase 0 — Access and bootstrap
+- [ ] Seeded demo accounts work with the real browser login flow
+- [x] Session restore is implemented through `GET /me`
+- [ ] Normal browser testing is fully independent from manual seeded bearer tokens
 
-### `/admin`
-- [x] Create a minimal admin landing page
-- [x] Show current admin name and email
-- [x] Add navigation links:
-- [x] `/admin/users`
-- [x] `/admin/students`
-- [x] `/admin/assignments`
-- [x] Protect route for admin role only
+### Phase 1 — Admin setup completion
+- [x] Admin landing page exists
+- [x] Admin users page is wired to `GET /admin/users`
+- [x] Admin users page can create teacher accounts with `POST /admin/users`
+- [x] Admin users page can create parent accounts with `POST /admin/users`
+- [x] Admin users page supports role and active filters
+- [x] Admin students page is wired to `GET /admin/students`
+- [x] Admin students page can create students with `POST /admin/students`
+- [x] Admin students page supports active and inactive filters
+- [x] Admin assignments page is wired
+- [x] Admin assignments page fetches students from `GET /admin/students`
+- [x] Admin assignments page fetches active parents from `GET /admin/users?role=parent&is_active=true`
+- [x] Admin assignments page fetches active teachers from `GET /admin/users?role=teacher&is_active=true`
+- [x] Admin assignments page lets admin assign a parent with `POST /admin/assign-parent`
+- [x] Admin assignments page lets admin assign a teacher with `POST /admin/assign-teacher`
+- [x] Admin assignments page shows current teacher and parent assignments for the selected student
 
-### `/admin/users`
-- [x] Create a protected placeholder route for `/admin/users`
-- [x] Fetch `GET /admin/users` on page load
-- [x] Render table or list of users
-- [x] Show columns:
-- [x] full name
-- [x] email
-- [x] role
-- [x] active status
-- [x] created time
-- [x] Add role filter:
-- [x] all
-- [x] admin
-- [x] teacher
-- [x] parent
-- [x] Wire role filter to query string, example:
-- [x] `GET /admin/users?role=teacher`
-- [x] Add active filter:
-- [x] all
-- [x] active
-- [x] inactive
-- [x] Wire active filter to query string, example:
-- [x] `GET /admin/users?is_active=true`
-- [x] Build create user form with fields:
-- [x] full_name
-- [x] email
-- [x] password
-- [x] role
-- [x] is_active
-- [x] POST form to `POST /admin/users`
-- [x] On success:
-- [x] clear form
-- [x] refresh user list
-- [x] show success message
-- [x] On failure:
-- [x] show field or server error
-- [x] keep entered values
-- [ ] Acceptance check:
-- [x] admin can create teacher
-- [x] admin can create parent
-- [x] admin can filter by role and active status
+### Shared frontend feed contracts
+- [ ] Add a dedicated frontend response type for `GET /me/students`
+- [ ] Add a dedicated frontend type for daily feed entries
+- [ ] Add a dedicated frontend type for daily feed media items
 
-### `/admin/students`
-- [x] Create a protected placeholder route for `/admin/students`
-- [x] Fetch `GET /admin/students` on page load
-- [x] Render table or list of students
-- [x] Show columns:
-- [x] full name
-- [x] active status
-- [x] created time
-- [x] Add active filter:
-- [x] all
-- [x] active
-- [x] inactive
-- [x] Wire filter to query string, example:
-- [x] `GET /admin/students?is_active=false`
-- [x] Build create student form with fields:
-- [x] full_name
-- [x] is_active
-- [x] POST form to `POST /admin/students`
-- [x] On success:
-- [x] clear form
-- [x] refresh student list
-- [x] show success message
-- [x] On failure:
-- [x] show server error
-- [x] keep entered values
-- [ ] Acceptance check:
-- [x] admin can create student
-- [x] admin can filter active and inactive students
+### Phase 2 — Teacher text-only feed MVP
+- [x] Teacher landing page exists and is protected
+- [x] `/teacher/students` route exists
+- [ ] `/teacher/students` fetches assigned students from `GET /me/students`
+- [ ] `/teacher/students` renders assigned students
+- [ ] `/teacher/students` shows an empty state when no students are assigned
+- [ ] `/teacher/students` links each student to `/teacher/students/[studentId]`
+- [ ] Create `/teacher/students/[studentId]`
+- [ ] Verify that the route `studentId` belongs to the logged-in teacher
+- [ ] Fetch feed history from `GET /students/{student_id}/daily-feed`
+- [ ] Render newest-first feed entries for the selected student
+- [ ] Build a daily note composer
+- [ ] Post text notes with `POST /students/{student_id}/daily-feed`
+- [ ] On success, clear the draft and prepend the new note
+- [ ] On failure, keep the draft and show the backend error
 
-### `/admin/assignments`
-- [x] Create a protected placeholder route for `/admin/assignments`
-- [x] Fetch students from `GET /admin/students`
-- [x] Fetch parents from `GET /admin/users?role=parent&is_active=true`
-- [x] Fetch teachers from `GET /admin/users?role=teacher&is_active=true`
-- [x] Build student selector
-- [x] Build parent selector
-- [x] Build teacher selector
-- [x] Add "Assign parent" action:
-- [x] POST to `POST /admin/assign-parent`
-- [x] body shape:
+### Phase 2 — Parent text-only feed MVP
+- [x] Parent protected route exists at `/parent/feed`
+- [ ] `/parent/feed` fetches linked students from `GET /me/students`
+- [ ] Show an empty state when the parent has zero linked children
+- [ ] Auto-select the child when the parent has exactly one linked student
+- [ ] Render a child switcher when the parent has more than one linked student
+- [ ] Load the selected child feed from `GET /students/{student_id}/daily-feed`
+- [ ] Render newest-first feed entries
+- [ ] Show loading, empty, and error states for both student selection and feed loading
 
-```json
-{
-  "parent_user_id": 3,
-  "student_id": 1
-}
-```
+### Phase 3 — Single-photo upload MVP
+- [ ] Add an optional image picker to the teacher daily post flow
+- [ ] Show a local preview before upload
+- [ ] Add a frontend request path for multipart text + optional image submission
+- [ ] Extend frontend feed types so posts can include media items
+- [ ] Render uploaded images in teacher feed history
+- [ ] Render uploaded images in parent feed entries
+- [ ] Show frontend validation messages for unsupported file types and oversized files
 
-- [x] Add "Assign teacher" action:
-- [x] POST to `POST /admin/assign-teacher`
-- [x] body shape:
+### Phase 4 — Frontend hardening and verification
+- [x] Admin setup flows already show loading, success, and error states
+- [ ] Teacher flow has complete loading, empty, success, and error states
+- [ ] Parent flow has complete loading, empty, success, and error states
+- [ ] Verify teacher users only see their assigned students
+- [ ] Verify parent users only see their linked children
+- [ ] Verify unauthorized roles are redirected away from protected pages
+- [ ] Verify frontend behavior for backend validation errors on feed creation and upload
 
-```json
-{
-  "teacher_user_id": 2,
-  "student_id": 1
-}
-```
+### Current MVP status snapshot
+- [x] Auth foundation is implemented
+- [x] Login, session restore, logout, and role redirects are implemented
+- [x] Admin users, students, and assignments pages are implemented
+- [ ] Teacher assigned-student list is not implemented yet
+- [ ] Teacher daily feed publish page is not implemented yet
+- [ ] Parent feed page is not implemented yet
+- [ ] Photo upload UI is not implemented yet
+- [ ] Shared frontend feed types are not implemented yet
 
-- [x] Show current assignments for the selected student
-- [x] Backend blocker resolved:
-- [x] add `GET /admin/assignments?student_id=123`
-- [x] Read response is available for frontend wiring:
-
-```json
-{
-  "ok": true,
-  "student": {
-    "id": 123,
-    "full_name": "Ayse",
-    "is_active": true
-  },
-  "parents": [
-    {
-      "id": 3,
-      "full_name": "Parent User",
-      "email": "parent@example.com",
-      "is_active": true,
-      "relationship_label": "mother"
-    }
-  ],
-  "teachers": [
-    {
-      "id": 2,
-      "full_name": "Teacher User",
-      "email": "teacher@example.com",
-      "is_active": true
-    }
-  ]
-}
-```
-
-- [x] Admin assignments can now read current links once the frontend page is wired
-- [ ] Acceptance check:
-- [x] admin can assign teacher to student
-- [x] admin can assign parent to student
-- [x] admin can see current links for a student
-
-### `/teacher`
-- [x] Create a minimal teacher landing page
-- [x] Show current teacher name and email
-- [x] Add navigation link to `/teacher/students`
-- [x] Protect route for teacher role only
-
-### `/teacher/students`
-- [x] Create a protected placeholder route for `/teacher/students`
-- [ ] Fetch `GET /me/students`
-- [ ] Render only assigned students
-- [ ] Each student card links to `/teacher/students/[studentId]`
-- [ ] Show on each card:
-- [ ] student name
-- [ ] active status
-- [ ] student id if needed for debugging
-- [ ] Handle empty state:
-- [ ] "No students assigned yet"
-- [ ] Acceptance check:
-- [ ] teacher sees only linked students
-- [ ] teacher can open a student detail page
-
-### `/teacher/students/[studentId]`
-- [ ] Read `studentId` from route params
-- [ ] Fetch teacher student list from `GET /me/students`
-- [ ] Verify the route student exists inside teacher-visible students
-- [ ] If not found, show access denied or not found state
-- [ ] Fetch student feed from `GET /students/{student_id}/daily-feed`
-- [ ] Render page sections:
-- [ ] student header
-- [ ] daily note composer
-- [ ] feed history list
-- [ ] Build note composer with field:
-- [ ] `body`
-- [ ] POST note to `POST /students/{student_id}/daily-feed`
-- [ ] request shape:
-
-```json
-{
-  "body": "Bugun iletisim calismasinda guzel ilerleme oldu."
-}
-```
-
-- [ ] On successful post:
-- [ ] clear textarea
-- [ ] prepend new note to feed list
-- [ ] On failure:
-- [ ] show backend error
-- [ ] keep draft text
-- [ ] Sort feed newest first using `posted_at_utc`
-- [ ] Acceptance check:
-- [ ] teacher can create a daily note
-- [ ] newly created note appears in the list
-
-### `/parent/feed`
-- [x] Create a protected parent landing route for `/parent/feed`
-- [ ] Fetch `GET /me/students`
-- [ ] If parent has zero children:
-- [ ] show empty state
-- [ ] If parent has one child:
-- [ ] auto-select that child
-- [ ] auto-load `GET /students/{student_id}/daily-feed`
-- [ ] If parent has multiple children:
-- [ ] render child switcher
-- [ ] load selected child feed
-- [ ] Render feed items in reverse chronological order
-- [ ] Use feed item shape:
-
-```json
-{
-  "id": 1,
-  "student_id": 1,
-  "body": "Ayse had a focused and positive session today.",
-  "posted_at_utc": "...",
-  "updated_at_utc": null
-}
-```
-
-- [ ] Acceptance check:
-- [ ] parent sees only linked children
-- [ ] parent can switch children if multiple
-- [ ] parent sees daily updates newest first
-
-### `/teacher/students/[studentId]` image upload extension
-- [ ] Keep text posting flow first
-- [ ] After text post works, add file picker
-- [ ] Show local preview before upload
-- [ ] Backend blocker:
-- [ ] add `POST /daily-feed/{post_id}/media` or a multipart combined endpoint
-- [ ] Frontend flow for simple 2-step MVP:
-- [ ] create post
-- [ ] receive `post.id`
-- [ ] upload image for that post
-- [ ] On parent feed page, render image thumbnails under each post
-- [ ] Acceptance check:
-- [ ] teacher can attach photo
-- [ ] parent can view photo in feed
-
-### Weekly homework pages
-- [ ] Backend blocker:
-- [ ] add `POST /students/{student_id}/weekly-homework`
-- [ ] add `GET /students/{student_id}/weekly-homework?week_start_date=YYYY-MM-DD`
-- [ ] Teacher page option 1:
-- [ ] extend `/teacher/students/[studentId]` with weekly homework composer
-- [ ] Teacher page option 2:
-- [ ] create `/teacher/students/[studentId]/homework`
-- [ ] Parent page option 1:
-- [ ] extend `/parent/feed` with latest homework card
-- [ ] Parent page option 2:
-- [ ] create `/parent/homework`
-- [ ] Create form fields:
-- [ ] week_start_date
-- [ ] title
-- [ ] body
-- [ ] Acceptance check:
-- [ ] teacher can publish weekly homework
-- [ ] parent can view latest homework
-
-### Schedule pages
-- [ ] Backend blocker:
-- [ ] add `POST /students/{student_id}/schedule-entries`
-- [ ] add `GET /students/{student_id}/schedule-entries?week_start_date=YYYY-MM-DD`
-- [ ] Admin page option 1:
-- [ ] extend `/admin/assignments` into school setup page
-- [ ] Admin page option 2:
-- [ ] create `/admin/schedule`
-- [ ] Parent page option:
-- [ ] create `/parent/schedule`
-- [ ] Build weekly list view first, not a calendar
-- [ ] Create schedule form fields:
-- [ ] entry_date
-- [ ] start_time
-- [ ] end_time
-- [ ] lesson_type
-- [ ] teacher_user_id
-- [ ] Acceptance check:
-- [ ] admin can create schedule entries
-- [ ] parent can view weekly plan
-
-### Recommended frontend build order
-- [x] 1. Shared frontend foundation
-- [x] 2. `/login`
-- [x] 3. auth boot and role redirects
-- [x] 4. `/admin`
-- [ ] 5. `/admin/users`
-- [ ] 6. `/admin/students`
-- [ ] 7. `/admin/assignments`
-- [x] 8. `/teacher`
-- [ ] 9. `/teacher/students`
-- [ ] 10. `/teacher/students/[studentId]`
-- [x] 11. `/parent/feed`
-- [ ] 12. image upload
-- [ ] 13. weekly homework
-- [ ] 14. schedule pages
+### Recommended frontend build order from here
+- [x] 1. Auth foundation and login
+- [x] 2. Admin users
+- [x] 3. Admin students
+- [x] 4. Admin assignments
+- [ ] 5. Shared frontend feed types
+- [ ] 6. Teacher assigned-student list
+- [ ] 7. Teacher student detail page with text composer
+- [ ] 8. Parent feed with child switcher
+- [ ] 9. Photo upload flow
+- [ ] 10. Frontend hardening pass
