@@ -214,9 +214,9 @@ type AuthState = {
 }
 ```
 
-- [ ] Add "Assign teacher" action:
-- [ ] POST to `POST /admin/assign-teacher`
-- [ ] body shape:
+- [x] Add "Assign teacher" action:
+- [x] POST to `POST /admin/assign-teacher`
+- [x] body shape:
 
 ```json
 {
@@ -260,7 +260,7 @@ type AuthState = {
 
 - [x] Admin assignments can now read current links once the frontend page is wired
 - [ ] Acceptance check:
-- [ ] admin can assign teacher to student
+- [x] admin can assign teacher to student
 - [x] admin can assign parent to student
 - [x] admin can see current links for a student
 

@@ -107,3 +107,15 @@ export type AssignParentResponse = {
   parent_user_id: number;
   student_id: number;
 };
+
+export type AssignTeacherRequest = {
+  teacher_user_id: number;
+  student_id: number;
+};
+
+export type AssignTeacherResponse = {
+  ok: true;
+  assigned_by_user_id: number;
+  teacher_user_id: number;
+  student_id: number;
+};
