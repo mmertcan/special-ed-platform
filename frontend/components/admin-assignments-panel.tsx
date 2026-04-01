@@ -9,6 +9,8 @@ import type {
   AdminUsersResponse,
   AssignParentRequest,
   AssignParentResponse,
+  AssignTeacherRequest,
+  AssignTeacherResponse,
   CurrentUser,
   StudentRecord,
 } from "../lib/types";
@@ -42,11 +44,18 @@ export function AdminAssignmentsPanel() {
   const [assignParentSuccessMessage, setAssignParentSuccessMessage] = useState<
     string | null
   >(null);
+  const [assignTeacherErrorMessage, setAssignTeacherErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [assignTeacherSuccessMessage, setAssignTeacherSuccessMessage] = useState<
+    string | null
+  >(null);
   const [isStudentsLoading, setIsStudentsLoading] = useState(true);
   const [isParentsLoading, setIsParentsLoading] = useState(true);
   const [isTeachersLoading, setIsTeachersLoading] = useState(true);
   const [isAssignmentsLoading, setIsAssignmentsLoading] = useState(false);
   const [isAssigningParent, setIsAssigningParent] = useState(false);
+  const [isAssigningTeacher, setIsAssigningTeacher] = useState(false);
   const [assignmentsRefreshKey, setAssignmentsRefreshKey] = useState(0);
   const [currentAssignments, setCurrentAssignments] =
     useState<AdminAssignmentsResponse | null>(null);
@@ -77,6 +86,13 @@ export function AdminAssignmentsPanel() {
       selectedParent &&
       !selectedParentAlreadyLinked &&
       !isAssigningParent,
+  );
+  const canAssignTeacher = Boolean(
+    token &&
+      selectedStudent &&
+      selectedTeacher &&
+      !selectedTeacherAlreadyLinked &&
+      !isAssigningTeacher,
   );
 
   useEffect(() => {
@@ -261,6 +277,11 @@ export function AdminAssignmentsPanel() {
   }, [selectedParentId, selectedStudentId]);
 
   useEffect(() => {
+    setAssignTeacherErrorMessage(null);
+    setAssignTeacherSuccessMessage(null);
+  }, [selectedTeacherId, selectedStudentId]);
+
+  useEffect(() => {
     if (
       isStudentsLoading ||
       studentsErrorMessage ||
@@ -412,6 +433,50 @@ export function AdminAssignmentsPanel() {
       }
     } finally {
       setIsAssigningParent(false);
+    }
+  };
+
+  const handleAssignTeacher = async () => {
+    if (!token || !selectedStudent || !selectedTeacher) {
+      setAssignTeacherErrorMessage("Choose a student and a teacher first.");
+      return;
+    }
+
+    const payload: AssignTeacherRequest = {
+      teacher_user_id: selectedTeacher.id,
+      student_id: selectedStudent.id,
+    };
+
+    setIsAssigningTeacher(true);
+    setAssignTeacherErrorMessage(null);
+    setAssignTeacherSuccessMessage(null);
+
+    try {
+      const response = await apiRequest<AssignTeacherResponse>("/admin/assign-teacher", {
+        method: "POST",
+        token,
+        body: payload,
+      });
+
+      setAssignTeacherSuccessMessage(
+        `Linked ${selectedTeacher.full_name} to ${selectedStudent.full_name}.`,
+      );
+      setAssignmentsRefreshKey((current) => current + 1);
+
+      if (
+        response.teacher_user_id !== selectedTeacher.id ||
+        response.student_id !== selectedStudent.id
+      ) {
+        setAssignTeacherErrorMessage("Unexpected assign-teacher response received.");
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setAssignTeacherErrorMessage(error.message);
+      } else {
+        setAssignTeacherErrorMessage("Teacher link could not be created.");
+      }
+    } finally {
+      setIsAssigningTeacher(false);
     }
   };
 
@@ -738,9 +803,8 @@ export function AdminAssignmentsPanel() {
             <div className="stack status-stack">
               <h3 className="section-title">Add teacher link</h3>
               <p className="status-note">
-                This section prepares the teacher candidate for the selected
-                student. The actual <code>Assign teacher</code> submit action is
-                the next slice.
+                This section sends the real <code>POST /admin/assign-teacher</code>{" "}
+                request for the selected student and selected teacher.
               </p>
             </div>
 
@@ -819,10 +883,31 @@ export function AdminAssignmentsPanel() {
                   </ul>
                 ) : (
                   <p className="status-note">
-                    Pick a teacher next, then the following slice can submit the
-                    teacher link for {selectedStudent?.full_name ?? "the selected student"}.
+                    Pick a teacher next, then submit the link for{" "}
+                    {selectedStudent?.full_name ?? "the selected student"}.
                   </p>
                 )}
+
+                {assignTeacherSuccessMessage ? (
+                  <p className="form-success" role="status">
+                    {assignTeacherSuccessMessage}
+                  </p>
+                ) : null}
+
+                {assignTeacherErrorMessage ? (
+                  <p className="form-error" role="alert">
+                    {assignTeacherErrorMessage}
+                  </p>
+                ) : null}
+
+                <button
+                  className="button form-submit"
+                  type="button"
+                  onClick={handleAssignTeacher}
+                  disabled={!canAssignTeacher}
+                >
+                  {isAssigningTeacher ? "Assigning teacher..." : "Assign teacher"}
+                </button>
               </>
             ) : null}
           </section>
