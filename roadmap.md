@@ -102,10 +102,10 @@ Assessment date: `2026-04-01`
 - [x] Verify that the route `studentId` belongs to the logged-in teacher
 - [x] Fetch feed history from `GET /students/{student_id}/daily-feed`
 - [x] Render newest-first feed entries for the selected student
-- [ ] Build a daily note composer
-- [ ] Post text notes with `POST /students/{student_id}/daily-feed`
-- [ ] On success, clear the draft and prepend the new note
-- [ ] On failure, keep the draft and show the backend error
+- [x] Build a daily note composer
+- [x] Post text notes with `POST /students/{student_id}/daily-feed`
+- [x] On success, clear the draft and prepend the new note
+- [x] On failure, keep the draft and show the backend error
 
 ### Phase 2 — Parent text-only feed MVP
 - [x] Parent protected route exists at `/parent/feed`
