@@ -109,13 +109,13 @@ Assessment date: `2026-04-01`
 
 ### Phase 2 — Parent text-only feed MVP
 - [x] Parent protected route exists at `/parent/feed`
-- [ ] `/parent/feed` fetches linked students from `GET /me/students`
-- [ ] Show an empty state when the parent has zero linked children
-- [ ] Auto-select the child when the parent has exactly one linked student
-- [ ] Render a child switcher when the parent has more than one linked student
-- [ ] Load the selected child feed from `GET /students/{student_id}/daily-feed`
-- [ ] Render newest-first feed entries
-- [ ] Show loading, empty, and error states for both student selection and feed loading
+- [x] `/parent/feed` fetches linked students from `GET /me/students`
+- [x] Show an empty state when the parent has zero linked children
+- [x] Auto-select the child when the parent has exactly one linked student
+- [x] Render a child switcher when the parent has more than one linked student
+- [x] Load the selected child feed from `GET /students/{student_id}/daily-feed`
+- [x] Render newest-first feed entries
+- [x] Show loading, empty, and error states for both student selection and feed loading
 
 ### Phase 3 — Single-photo upload MVP
 - [ ] Add an optional image picker to the teacher daily post flow
@@ -139,20 +139,20 @@ Assessment date: `2026-04-01`
 - [x] Auth foundation is implemented
 - [x] Login, session restore, logout, and role redirects are implemented
 - [x] Admin users, students, and assignments pages are implemented
-- [ ] Teacher assigned-student list is not implemented yet
-- [ ] Teacher daily feed publish page is not implemented yet
-- [ ] Parent feed page is not implemented yet
+- [x] Teacher assigned-student list is implemented
+- [x] Teacher daily feed publish page is implemented
+- [x] Parent feed page is implemented
 - [ ] Photo upload UI is not implemented yet
-- [ ] Shared frontend feed types are not implemented yet
+- [x] Shared frontend feed types are implemented
 
 ### Recommended frontend build order from here
 - [x] 1. Auth foundation and login
 - [x] 2. Admin users
 - [x] 3. Admin students
 - [x] 4. Admin assignments
-- [ ] 5. Shared frontend feed types
-- [ ] 6. Teacher assigned-student list
-- [ ] 7. Teacher student detail page with text composer
-- [ ] 8. Parent feed with child switcher
+- [x] 5. Shared frontend feed types
+- [x] 6. Teacher assigned-student list
+- [x] 7. Teacher student detail page with text composer
+- [x] 8. Parent feed with child switcher
 - [ ] 9. Photo upload flow
 - [ ] 10. Frontend hardening pass

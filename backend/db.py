@@ -488,10 +488,19 @@ def fetch_daily_feed_entries(*, student_id: int) -> list[dict[str, Any]]:
     try:
         rows = conn.execute(
             """
-            SELECT id, student_id, body, posted_at_utc
-            FROM daily_feed_posts
-            WHERE student_id = ?
-            ORDER BY id DESC
+            SELECT
+                dfp.id,
+                dfp.student_id,
+                dfp.author_user_id,
+                u.role AS author_role,
+                u.full_name AS author_full_name,
+                dfp.body,
+                dfp.posted_at_utc,
+                dfp.updated_at_utc
+            FROM daily_feed_posts dfp
+            JOIN users u ON u.id = dfp.author_user_id
+            WHERE dfp.student_id = ?
+            ORDER BY dfp.id DESC
             """,
             (student_id,),
         ).fetchall()

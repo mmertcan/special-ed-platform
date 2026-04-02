@@ -1037,6 +1037,7 @@ def test_teacher_can_create_daily_feed_post(client: TestClient):
     assert payload["post"]["student_id"] == 1
     assert payload["post"]["author_user_id"] == 2
     assert payload["post"]["author_role"] == "teacher"
+    assert payload["post"]["author_full_name"] == "Teacher User"
     assert payload["post"]["body"] == "Ayse had a strong communication session today."
     assert payload["post"]["updated_at_utc"] is None
 
@@ -1054,6 +1055,7 @@ def test_parent_can_fetch_allowed_feed(client: TestClient):
     assert payload["viewer_role"] == "parent"
     assert payload["viewer_user_id"] == 3
     assert isinstance(payload["entries"], list)
+    assert payload["entries"][0]["author_full_name"] == "Teacher User"
 
 
 def test_teacher_can_fetch_allowed_feed(client: TestClient):
@@ -1069,6 +1071,7 @@ def test_teacher_can_fetch_allowed_feed(client: TestClient):
     assert payload["viewer_role"] == "teacher"
     assert payload["viewer_user_id"] == 2
     assert isinstance(payload["entries"], list)
+    assert payload["entries"][0]["author_full_name"] == "Teacher User"
 
 
 def test_admin_can_fetch_any_feed(client: TestClient):

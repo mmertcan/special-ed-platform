@@ -149,6 +149,7 @@ export type DailyFeedEntry = {
   updated_at_utc?: string | null;
   author_user_id?: number;
   author_role?: UserRole;
+  author_full_name?: string;
   media_items?: DailyFeedMediaItem[];
 };
 
