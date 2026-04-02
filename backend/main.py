@@ -193,6 +193,7 @@ def create_daily_feed_entry_route(
         "student_id": student_id,
         "author_user_id": user.user_id,
         "author_role": user.role,
+        "author_full_name": user.full_name,
         "body": body_clean,
         "posted_at_utc": posted_at,
         "updated_at_utc": None,

@@ -17,8 +17,6 @@ import { useAuth } from "./auth-provider";
 
 type StudentPresentation = {
   gradeLabel: string;
-  teacherName: string;
-  familyNote: string;
   latestDurationLabel: string;
 };
 
@@ -31,23 +29,14 @@ type SessionGroup = {
 const studentPresentationCycle: StudentPresentation[] = [
   {
     gradeLabel: "1. Sınıf",
-    teacherName: "Ayşe Öğretmen",
-    familyNote:
-      "Yarın iletişim kartının çantada olması faydalı olur. Evde benzer kartlarla kısa tekrar yapabilirsiniz.",
     latestDurationLabel: "1 saat",
   },
   {
     gradeLabel: "2. Sınıf",
-    teacherName: "Zeynep Öğretmen",
-    familyNote:
-      "Evde kısa yönergelerle devam etmek odaklanmayı güçlendirebilir. Günlük rutinde iki kısa tekrar yeterlidir.",
     latestDurationLabel: "50 dk",
   },
   {
     gradeLabel: "3. Sınıf",
-    teacherName: "Elif Öğretmen",
-    familyNote:
-      "Bu hafta görsel ipuçlarıyla kısa tekrar iyi gelebilir. Özellikle geçiş anlarında aynı ifadeleri kullanmayı deneyin.",
     latestDurationLabel: "45 dk",
   },
 ];
@@ -207,10 +196,10 @@ export function ParentFeedPanel() {
   const studentPresentation = selectedStudent
     ? getStudentPresentation(selectedStudent.id)
     : null;
-  const latestSummary = latestSession
-    ? buildSessionSummary(latestSession, selectedStudent?.full_name ?? "öğrenciniz")
-    : null;
   const latestUpdates = latestSession?.entries.slice(0, 2) ?? [];
+  const latestTeacherName = latestSession
+    ? getLatestTeacherName(latestSession)
+    : null;
   const headerInitials = getInitials(currentUser?.full_name ?? "Veli");
 
   return (
@@ -315,15 +304,15 @@ export function ParentFeedPanel() {
               </article>
               <article className="parent-stat-card">
                 <div className="parent-stat-icon">Ö</div>
-                <strong>{studentPresentation?.teacherName ?? "Öğretmen"}</strong>
+                <strong>{latestTeacherName ?? "Öğretmen bilgisi yok"}</strong>
                 <span>Oturum öğretmeni</span>
               </article>
             </div>
           ) : null}
         </section>
 
-        <section className="parent-card-section">
-          <div className="parent-card-label">OTURUM ÖZETİ</div>
+        <section className="parent-section">
+          <h2 className="parent-section-title">Paylaşımlar</h2>
 
           {isFeedLoading ? (
             <p className="status-note">Son oturum yükleniyor.</p>
@@ -336,18 +325,12 @@ export function ParentFeedPanel() {
           ) : null}
 
           {!selectedStudent && !isStudentsLoading && !studentsErrorMessage ? (
-            <p className="status-note">Öğrenci seçildiğinde oturum özeti burada görünür.</p>
+            <p className="status-note">Öğrenci seçildiğinde paylaşımlar burada görünür.</p>
           ) : null}
 
           {selectedStudent && !isFeedLoading && !feedErrorMessage && !latestSession ? (
             <p className="status-note">Bu öğrenci için henüz oturum paylaşımı bulunmuyor.</p>
           ) : null}
-
-          {latestSummary ? <p className="parent-summary-text">{latestSummary}</p> : null}
-        </section>
-
-        <section className="parent-section">
-          <h2 className="parent-section-title">Paylaşımlar</h2>
 
           {selectedStudent && !isFeedLoading && !feedErrorMessage && latestUpdates.length > 0 ? (
             <div className="parent-updates-list">
@@ -370,15 +353,6 @@ export function ParentFeedPanel() {
               )}
             </div>
           ) : null}
-        </section>
-
-        <section className="parent-family-note">
-          <h2 className="parent-family-title">Aile İçin Not</h2>
-          <p className="parent-family-text">
-            {selectedStudent && latestSession && studentPresentation
-              ? studentPresentation.familyNote
-              : "Yeni bir oturum paylaşıldığında aile notu burada görünecek."}
-          </p>
         </section>
 
         <section className="parent-section">
@@ -480,19 +454,9 @@ function getStudentPresentation(studentId: number): StudentPresentation {
   return studentPresentationCycle[(studentId - 1) % studentPresentationCycle.length];
 }
 
-function buildSessionSummary(session: SessionGroup, studentName: string) {
-  const firstEntry = session.entries[0]?.body ?? "";
-  const secondEntry = session.entries[1]?.body ?? "";
-
-  if (!firstEntry) {
-    return `${studentName} için bu oturuma ait özet henüz oluşmadı.`;
-  }
-
-  if (!secondEntry) {
-    return `${studentName} ile yapılan bu oturumda öne çıkan gelişim notu şu şekilde paylaşıldı: ${firstEntry}`;
-  }
-
-  return `${studentName} ile yapılan bu oturumda öne çıkan iki başlık vardı: ${firstEntry} Ayrıca ${secondEntry.toLowerCase()}`;
+function getLatestTeacherName(session: SessionGroup) {
+  const latestNamedEntry = session.entries.find((entry) => entry.author_full_name);
+  return latestNamedEntry?.author_full_name ?? null;
 }
 
 function buildPastSessionSummary(session: SessionGroup) {

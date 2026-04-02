@@ -452,8 +452,6 @@ select {
 }
 
 .parent-student-card,
-.parent-card-section,
-.parent-family-note,
 .parent-past-card {
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.86);
@@ -464,8 +462,7 @@ select {
   padding: 18px 18px 20px;
 }
 
-.parent-section-label,
-.parent-card-label {
+.parent-section-label {
   color: #8992a2;
   font-size: 0.8rem;
   letter-spacing: 0.08em;
@@ -581,18 +578,6 @@ select {
   font-size: 0.82rem;
 }
 
-.parent-card-section {
-  display: grid;
-  gap: 14px;
-  padding: 20px 18px 22px;
-}
-
-.parent-summary-text {
-  margin: 0;
-  font-size: 1.02rem;
-  line-height: 1.8;
-}
-
 .parent-updates-list {
   display: grid;
   gap: 14px;
@@ -671,25 +656,6 @@ select {
   background: #edf3ff;
   color: #0454b4;
   font-size: 0.78rem;
-}
-
-.parent-family-note {
-  padding: 20px 18px 22px;
-  background:
-    radial-gradient(circle at top right, rgba(255, 222, 173, 0.42), transparent 24%),
-    rgba(255, 246, 234, 0.92);
-  border: 1px solid rgba(236, 174, 84, 0.24);
-}
-
-.parent-family-title {
-  margin: 0 0 10px;
-  color: #f08b00;
-  font-size: 1.5rem;
-}
-
-.parent-family-text {
-  margin: 0;
-  line-height: 1.8;
 }
 
 .parent-past-list {
