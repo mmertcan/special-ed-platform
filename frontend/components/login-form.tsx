@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ApiError, apiRequest } from "../lib/api";
+import { ApiError, apiRequest, NetworkError } from "../lib/api";
 import { getRoleHome } from "../lib/routing";
 import type { LoginResponse } from "../lib/types";
 import { useAuth } from "./auth-provider";
@@ -43,8 +43,12 @@ export function LoginForm() {
     } catch (error) {
       if (error instanceof ApiError) {
         setErrorMessage(error.message);
+      } else if (error instanceof NetworkError) {
+        setErrorMessage(error.message);
       } else {
-        setErrorMessage("Login failed. Please try again.");
+        setErrorMessage(
+          "Login failed because the backend could not be reached. Check NEXT_PUBLIC_API_BASE_URL and FRONTEND_ORIGINS.",
+        );
       }
     } finally {
       setIsSubmitting(false);
