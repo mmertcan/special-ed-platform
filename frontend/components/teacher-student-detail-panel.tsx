@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ApiError, apiRequest } from "../lib/api";
+import { ApiError, apiRequest, buildApiUrl, uploadFileRequest } from "../lib/api";
 import type {
   DailyFeedCreateRequest,
   DailyFeedCreateResponse,
   DailyFeedEntry,
+  DailyFeedMediaUploadResponse,
   DailyFeedResponse,
   MeStudentsResponse,
   ViewerStudent,
@@ -32,6 +33,11 @@ export function TeacherStudentDetailPanel() {
   const [composerSuccessMessage, setComposerSuccessMessage] = useState<string | null>(
     null,
   );
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [selectedImagePreviewUrl, setSelectedImagePreviewUrl] = useState<string | null>(
+    null,
+  );
+  const [fileInputResetKey, setFileInputResetKey] = useState(0);
   const [isStudentsLoading, setIsStudentsLoading] = useState(true);
   const [isFeedLoading, setIsFeedLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -139,7 +145,23 @@ export function TeacherStudentDetailPanel() {
     setComposerDraft("");
     setComposerErrorMessage(null);
     setComposerSuccessMessage(null);
+    setSelectedImageFile(null);
+    setFileInputResetKey((current) => current + 1);
   }, [selectedStudentId]);
+
+  useEffect(() => {
+    if (!selectedImageFile) {
+      setSelectedImagePreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedImageFile);
+    setSelectedImagePreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [selectedImageFile]);
 
   const handleCreateNote = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -158,7 +180,7 @@ export function TeacherStudentDetailPanel() {
     setComposerSuccessMessage(null);
 
     try {
-      const response = await apiRequest<DailyFeedCreateResponse>(
+      const createResponse = await apiRequest<DailyFeedCreateResponse>(
         `/students/${selectedStudent.id}/daily-feed`,
         {
           method: "POST",
@@ -167,10 +189,49 @@ export function TeacherStudentDetailPanel() {
         },
       );
 
-      setFeedEntries((current) => [response.post, ...current]);
+      let nextEntry = createResponse.post;
+
+      if (selectedImageFile) {
+        try {
+          const uploadResponse = await uploadFileRequest<DailyFeedMediaUploadResponse>(
+            `/daily-feed/${createResponse.post.id}/media`,
+            {
+              token,
+              file: selectedImageFile,
+            },
+          );
+
+          nextEntry = {
+            ...createResponse.post,
+            media_items: [uploadResponse.media],
+          };
+        } catch (error) {
+          setFeedEntries((current) => [createResponse.post, ...current]);
+          setComposerDraft("");
+          setSelectedImageFile(null);
+          setFileInputResetKey((current) => current + 1);
+
+          if (error instanceof ApiError) {
+            setComposerErrorMessage(
+              `Daily note was posted, but the image could not be uploaded: ${error.message}`,
+            );
+          } else {
+            setComposerErrorMessage(
+              "Daily note was posted, but the image could not be uploaded.",
+            );
+          }
+          return;
+        }
+      }
+
+      setFeedEntries((current) => [nextEntry, ...current]);
       setComposerDraft("");
+      setSelectedImageFile(null);
+      setFileInputResetKey((current) => current + 1);
       setComposerSuccessMessage(
-        `Posted a new daily note for ${selectedStudent.full_name}.`,
+        selectedImageFile
+          ? `Posted a new daily note with image for ${selectedStudent.full_name}.`
+          : `Posted a new daily note for ${selectedStudent.full_name}.`,
       );
     } catch (error) {
       if (error instanceof ApiError) {
@@ -299,6 +360,37 @@ export function TeacherStudentDetailPanel() {
                 />
               </label>
 
+              <label className="field">
+                <span className="field-label">Optional image</span>
+                <input
+                  key={fileInputResetKey}
+                  className="field-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) =>
+                    setSelectedImageFile(event.target.files?.[0] ?? null)
+                  }
+                  disabled={isSubmitting}
+                />
+              </label>
+
+              {selectedImageFile ? (
+                <p className="status-note">
+                  Selected image: <code>{selectedImageFile.name}</code>
+                </p>
+              ) : null}
+
+              {selectedImagePreviewUrl ? (
+                <div className="stack status-stack">
+                  <span className="field-label">Preview</span>
+                  <img
+                    className="feed-media-preview"
+                    src={selectedImagePreviewUrl}
+                    alt="Selected upload preview"
+                  />
+                </div>
+              ) : null}
+
               {composerSuccessMessage ? (
                 <p className="form-success" role="status">
                   {composerSuccessMessage}
@@ -359,7 +451,28 @@ export function TeacherStudentDetailPanel() {
                   <span className="meta-label">
                     Posted {formatUtcTimestamp(entry.posted_at_utc)}
                   </span>
-                  {entry.body}
+                  <div className="stack feed-entry-content">
+                    <p className="feed-entry-body">{entry.body}</p>
+                    {entry.media_items && entry.media_items.length > 0 ? (
+                      <div className="feed-media-list">
+                        {entry.media_items.map((mediaItem) => (
+                          <a
+                            key={mediaItem.id}
+                            href={buildApiUrl(`/uploads/${mediaItem.storage_key}`)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="feed-media-link"
+                          >
+                            <img
+                              className="feed-media-image"
+                              src={buildApiUrl(`/uploads/${mediaItem.storage_key}`)}
+                              alt={`Upload for daily feed entry ${entry.id}`}
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>
