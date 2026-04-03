@@ -784,22 +784,34 @@ select {
 .parent-more-updates {
   display: grid;
   gap: 10px;
-  padding: 6px 4px 0;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: rgba(232, 241, 255, 0.82);
+  border: 1px solid rgba(4, 84, 180, 0.08);
 }
 
 .parent-more-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   justify-self: start;
   border: 0;
   border-radius: 999px;
-  background: #e8f1ff;
-  color: #0454b4;
-  padding: 10px 16px;
+  background: #0454b4;
+  color: #fff;
+  padding: 12px 18px;
   font: inherit;
+  font-weight: 700;
+  box-shadow: 0 12px 24px rgba(4, 84, 180, 0.18);
+}
+
+.parent-more-button:hover {
+  background: #03428d;
 }
 
 .parent-more-note {
   margin: 0;
-  color: #687386;
+  color: #45607f;
   font-size: 0.94rem;
   line-height: 1.6;
 }
