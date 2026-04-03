@@ -78,6 +78,22 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 - protected routes reject the wrong role
 - logout clears the session and routes back to `/login`
 
+## Photo upload backend foundation
+
+The backend now supports the first real photo-upload MVP path:
+
+1. Create a daily text post with `POST /students/{student_id}/daily-feed`
+2. Upload one image for that post with `POST /daily-feed/{post_id}/media`
+3. Read the post back through `GET /students/{student_id}/daily-feed`
+
+For MVP, uploaded files are stored on the local filesystem under:
+
+```text
+backend/uploads/daily-feed/<post_id>/
+```
+
+Feed responses now include a `media_items` array on each post.
+
 ## What is intentionally not built yet
 
 - photo upload flow for daily feed posts

@@ -5,12 +5,14 @@ import hashlib
 import re
 import secrets
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 from contextlib import asynccontextmanager
 
 import sqlite3
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from auth import (
@@ -19,6 +21,7 @@ from auth import (
     require_any_user,
     require_can_view_student,
     require_can_write_student,
+    require_teacher,
 )
 from db import (
     fetch_admin_students,
@@ -34,7 +37,9 @@ from db import (
     fetch_user_by_id,
     fetch_student_from_parent,
     fetch_student_from_teacher,
+    fetch_daily_feed_post_summary_by_id,
     init_db,
+    insert_daily_feed_media,
     insert_daily_feed_posts,
     insert_student,
     insert_user,
@@ -50,6 +55,7 @@ from db import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     print("LIFESPAN STARTUP: init_db() running")
     yield
 
@@ -76,6 +82,14 @@ app.add_middleware(
 VALID_USER_ROLES = {"admin", "teacher", "parent"}
 EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PBKDF2_ITERATIONS = 100_000
+UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
+MAX_DAILY_FEED_IMAGE_BYTES = 5 * 1024 * 1024
+ALLOWED_IMAGE_CONTENT_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR, check_dir=False), name="uploads")
 
 
 class DailyFeedCreateRequest(BaseModel):
@@ -197,9 +211,61 @@ def create_daily_feed_entry_route(
         "body": body_clean,
         "posted_at_utc": posted_at,
         "updated_at_utc": None,
+        "media_items": [],
     }
 
     return {"ok": True, "post": post}
+
+
+@app.post("/daily-feed/{post_id}/media", status_code=status.HTTP_201_CREATED)
+async def upload_daily_feed_media_route(
+    post_id: int,
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(require_teacher),
+):
+    post = fetch_daily_feed_post_summary_by_id(post_id=post_id)
+    if post is None:
+        raise HTTPException(status_code=404, detail="daily feed post not found")
+
+    if not teacher_has_student(
+        teacher_user_id=user.user_id,
+        student_id=post["student_id"],
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="teacher not allowed to access this student",
+        )
+
+    extension = ALLOWED_IMAGE_CONTENT_TYPES.get(file.content_type or "")
+    if extension is None:
+        raise HTTPException(status_code=400, detail="unsupported image type")
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="uploaded file is empty")
+
+    if len(file_bytes) > MAX_DAILY_FEED_IMAGE_BYTES:
+        raise HTTPException(status_code=400, detail="image file is too large")
+
+    created_at_utc = datetime.now(timezone.utc).isoformat()
+    storage_key = f"daily-feed/{post_id}/{secrets.token_hex(12)}{extension}"
+    output_path = UPLOADS_DIR / storage_key
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_bytes(file_bytes)
+
+    try:
+        media = insert_daily_feed_media(
+            post_id=post_id,
+            storage_key=storage_key,
+            media_type="image",
+            created_at_utc=created_at_utc,
+        )
+    except Exception:
+        if output_path.exists():
+            output_path.unlink()
+        raise
+
+    return {"ok": True, "media": media}
 
 
 @app.get("/students/{student_id}/daily-feed")

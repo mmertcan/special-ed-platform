@@ -40,6 +40,7 @@ def create_user_via_admin(
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     test_db_path = tmp_path / "test_app.db"
     monkeypatch.setattr(db, "DB_PATH", str(test_db_path))
+    monkeypatch.setattr(main, "UPLOADS_DIR", tmp_path / "uploads")
     db.init_db()
     with TestClient(main.app) as test_client:
         yield test_client
@@ -1102,6 +1103,145 @@ def test_teacher_can_create_daily_feed_post(client: TestClient):
     assert payload["post"]["author_full_name"] == "Teacher User"
     assert payload["post"]["body"] == "Ayse had a strong communication session today."
     assert payload["post"]["updated_at_utc"] is None
+    assert payload["post"]["media_items"] == []
+
+
+def test_teacher_can_upload_daily_feed_image(client: TestClient):
+    create_post_response = client.post(
+        "/students/1/daily-feed",
+        json={"body": "Ayse had a strong communication session today."},
+        headers=auth_header("teacher-token-123"),
+    )
+    assert create_post_response.status_code == 200
+    post_id = create_post_response.json()["post"]["id"]
+
+    response = client.post(
+        f"/daily-feed/{post_id}/media",
+        files={"file": ("session-photo.png", b"fake-png-bytes", "image/png")},
+        headers=auth_header("teacher-token-123"),
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["media"]["post_id"] == post_id
+    assert payload["media"]["media_type"] == "image"
+    assert payload["media"]["storage_key"].startswith(f"daily-feed/{post_id}/")
+    assert payload["media"]["storage_key"].endswith(".png")
+
+    saved_file = main.UPLOADS_DIR / payload["media"]["storage_key"]
+    assert saved_file.exists()
+    assert saved_file.read_bytes() == b"fake-png-bytes"
+
+
+def test_feed_entries_include_uploaded_media_items(client: TestClient):
+    create_post_response = client.post(
+        "/students/1/daily-feed",
+        json={"body": "Ayse had a strong communication session today."},
+        headers=auth_header("teacher-token-123"),
+    )
+    assert create_post_response.status_code == 200
+    post_id = create_post_response.json()["post"]["id"]
+
+    upload_response = client.post(
+        f"/daily-feed/{post_id}/media",
+        files={"file": ("session-photo.webp", b"fake-webp-bytes", "image/webp")},
+        headers=auth_header("teacher-token-123"),
+    )
+    assert upload_response.status_code == 201
+
+    response = client.get(
+        "/students/1/daily-feed",
+        headers=auth_header("parent-token-123"),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    matching_entry = next(entry for entry in payload["entries"] if entry["id"] == post_id)
+    assert matching_entry["media_items"] == [
+        {
+            "id": upload_response.json()["media"]["id"],
+            "post_id": post_id,
+            "storage_key": upload_response.json()["media"]["storage_key"],
+            "media_type": "image",
+            "created_at_utc": upload_response.json()["media"]["created_at_utc"],
+        }
+    ]
+
+
+def test_teacher_upload_rejects_unsupported_image_type(client: TestClient):
+    create_post_response = client.post(
+        "/students/1/daily-feed",
+        json={"body": "Ayse had a strong communication session today."},
+        headers=auth_header("teacher-token-123"),
+    )
+    assert create_post_response.status_code == 200
+    post_id = create_post_response.json()["post"]["id"]
+
+    response = client.post(
+        f"/daily-feed/{post_id}/media",
+        files={"file": ("session-photo.gif", b"gif-bytes", "image/gif")},
+        headers=auth_header("teacher-token-123"),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "unsupported image type"
+
+
+def test_teacher_upload_rejects_oversized_image(client: TestClient):
+    create_post_response = client.post(
+        "/students/1/daily-feed",
+        json={"body": "Ayse had a strong communication session today."},
+        headers=auth_header("teacher-token-123"),
+    )
+    assert create_post_response.status_code == 200
+    post_id = create_post_response.json()["post"]["id"]
+
+    oversized_bytes = b"a" * (main.MAX_DAILY_FEED_IMAGE_BYTES + 1)
+    response = client.post(
+        f"/daily-feed/{post_id}/media",
+        files={"file": ("session-photo.png", oversized_bytes, "image/png")},
+        headers=auth_header("teacher-token-123"),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "image file is too large"
+
+
+def test_unassigned_teacher_cannot_upload_daily_feed_image(client: TestClient):
+    create_post_response = client.post(
+        "/students/1/daily-feed",
+        json={"body": "Ayse had a strong communication session today."},
+        headers=auth_header("teacher-token-123"),
+    )
+    assert create_post_response.status_code == 200
+    post_id = create_post_response.json()["post"]["id"]
+
+    create_second_teacher_response = create_user_via_admin(
+        client,
+        email="photo-upload-teacher@example.com",
+        password="known-password-123",
+    )
+    assert create_second_teacher_response.status_code == 201
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": "photo-upload-teacher@example.com",
+            "password": "known-password-123",
+        },
+    )
+    assert login_response.status_code == 200
+    second_teacher_token = login_response.json()["token"]
+
+    response = client.post(
+        f"/daily-feed/{post_id}/media",
+        files={"file": ("session-photo.png", b"fake-png-bytes", "image/png")},
+        headers=auth_header(second_teacher_token),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "teacher not allowed to access this student"
 
 
 def test_parent_can_fetch_allowed_feed(client: TestClient):
