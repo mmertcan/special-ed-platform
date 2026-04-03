@@ -17,6 +17,13 @@ import { useAuth } from "./auth-provider";
 import { LogoutButton } from "./logout-button";
 import { UserSummary } from "./user-summary";
 
+const MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
 export function TeacherStudentDetailPanel() {
   const params = useParams<{ studentId: string }>();
   const { token } = useAuth();
@@ -244,6 +251,34 @@ export function TeacherStudentDetailPanel() {
     }
   };
 
+  const handleImageSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0] ?? null;
+
+    if (!nextFile) {
+      setSelectedImageFile(null);
+      return;
+    }
+
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(nextFile.type)) {
+      setSelectedImageFile(null);
+      setFileInputResetKey((current) => current + 1);
+      setComposerErrorMessage(
+        "Unsupported image type. Please choose PNG, JPEG, or WebP.",
+      );
+      return;
+    }
+
+    if (nextFile.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setSelectedImageFile(null);
+      setFileInputResetKey((current) => current + 1);
+      setComposerErrorMessage("Image file is too large. Maximum size is 5 MB.");
+      return;
+    }
+
+    setComposerErrorMessage(null);
+    setSelectedImageFile(nextFile);
+  };
+
   return (
     <main className="app-shell">
       <div className="container stack">
@@ -367,9 +402,7 @@ export function TeacherStudentDetailPanel() {
                   className="field-input"
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
-                  onChange={(event) =>
-                    setSelectedImageFile(event.target.files?.[0] ?? null)
-                  }
+                  onChange={handleImageSelection}
                   disabled={isSubmitting}
                 />
               </label>

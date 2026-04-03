@@ -13,6 +13,13 @@ type UploadFileOptions = {
   file: File;
 };
 
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
 export class ApiError extends Error {
   status: number;
   payload: unknown;
@@ -42,11 +49,18 @@ export async function apiRequest<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new NetworkError(
+      "Could not reach the backend. Check NEXT_PUBLIC_API_BASE_URL, host binding, and FRONTEND_ORIGINS.",
+    );
+  }
 
   const text = await response.text();
   const payload = parsePayload(text);
@@ -76,11 +90,18 @@ export async function uploadFileRequest<T>(
   const formData = new FormData();
   formData.set(fieldName, file);
 
-  const response = await fetch(buildApiUrl(path), {
-    method: "POST",
-    headers,
-    body: formData,
-  });
+  let response: Response;
+  try {
+    response = await fetch(buildApiUrl(path), {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+  } catch {
+    throw new NetworkError(
+      "Could not reach the backend. Check NEXT_PUBLIC_API_BASE_URL, host binding, and FRONTEND_ORIGINS.",
+    );
+  }
 
   const text = await response.text();
   const payload = parsePayload(text);

@@ -33,6 +33,14 @@ The backend now allows browser requests from:
 
 You can override that with the `FRONTEND_ORIGINS` environment variable.
 
+Example:
+
+```bash
+cd backend
+export FRONTEND_ORIGINS="http://localhost:3000,http://127.0.0.1:3000,http://192.168.1.3:3000"
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
 ## Seeded demo login accounts
 
 First principle:
@@ -67,6 +75,76 @@ npm run dev
 ```bash
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
+
+For phone testing on the same Wi-Fi, replace `127.0.0.1` with your Mac's local IP:
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://192.168.1.3:8000
+```
+
+Then run:
+
+```bash
+npm run dev -- --hostname 0.0.0.0 --port 3000
+```
+
+## Phone testing on the same Wi-Fi
+
+First principle:
+- `localhost` on your Mac means your Mac
+- `localhost` on your phone means your phone
+- so your phone must use your Mac's local network IP
+
+1. Make sure both devices are on the same Wi-Fi.
+2. Find your Mac IP:
+
+```bash
+ipconfig getifaddr en0
+```
+
+If that returns nothing:
+
+```bash
+ipconfig getifaddr en1
+```
+
+3. Start the backend with your phone origin allowed:
+
+```bash
+cd backend
+export FRONTEND_ORIGINS="http://localhost:3000,http://127.0.0.1:3000,http://YOUR_MAC_IP:3000"
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+4. Start the frontend bound to your local network:
+
+```bash
+cd frontend
+npm run dev -- --hostname 0.0.0.0 --port 3000
+```
+
+5. Set `frontend/.env.local`:
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://YOUR_MAC_IP:8000
+```
+
+6. Open the app on your phone:
+
+```text
+http://YOUR_MAC_IP:3000
+```
+
+7. Quick backend check from the phone:
+
+```text
+http://YOUR_MAC_IP:8000/health
+```
+
+If login still fails with a generic network-style message, the usual causes are:
+- backend is not running on `0.0.0.0`
+- `FRONTEND_ORIGINS` does not include `http://YOUR_MAC_IP:3000`
+- `NEXT_PUBLIC_API_BASE_URL` still points to `127.0.0.1`
 
 ## What works in the frontend right now
 
