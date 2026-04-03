@@ -527,6 +527,88 @@ def insert_daily_feed_posts(
         conn.close()
 
 
+def fetch_daily_feed_post_summary_by_id(*, post_id: int) -> Optional[dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT id, student_id, author_user_id, posted_at_utc
+            FROM daily_feed_posts
+            WHERE id = ?
+            """,
+            (post_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def insert_daily_feed_media(
+    *,
+    post_id: int,
+    storage_key: str,
+    media_type: str,
+    created_at_utc: str,
+) -> dict[str, Any]:
+    conn = get_db_connection()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO daily_feed_media (
+                post_id,
+                storage_key,
+                media_type,
+                created_at_utc
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (post_id, storage_key, media_type, created_at_utc),
+        )
+        conn.commit()
+        new_id = cur.lastrowid
+        if new_id is None:
+            raise RuntimeError("Insert succeeded but lastrowid is None (unexpected)")
+        return {
+            "id": int(new_id),
+            "post_id": post_id,
+            "storage_key": storage_key,
+            "media_type": media_type,
+            "created_at_utc": created_at_utc,
+        }
+    finally:
+        conn.close()
+
+
+def fetch_daily_feed_media_by_post_ids(
+    *,
+    post_ids: list[int],
+) -> dict[int, list[dict[str, Any]]]:
+    if not post_ids:
+        return {}
+
+    placeholders = ", ".join("?" for _ in post_ids)
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT id, post_id, storage_key, media_type, created_at_utc
+            FROM daily_feed_media
+            WHERE post_id IN ({placeholders})
+            ORDER BY id ASC
+            """,
+            post_ids,
+        ).fetchall()
+    finally:
+        conn.close()
+
+    grouped_media: dict[int, list[dict[str, Any]]] = {post_id: [] for post_id in post_ids}
+    for row in rows:
+        media_item = dict(row)
+        grouped_media.setdefault(media_item["post_id"], []).append(media_item)
+
+    return grouped_media
+
+
 def fetch_daily_feed_entries(*, student_id: int) -> list[dict[str, Any]]:
     """
     Fetches daily feed entries for one student (newest first).
@@ -554,7 +636,15 @@ def fetch_daily_feed_entries(*, student_id: int) -> list[dict[str, Any]]:
     finally:
         conn.close()
 
-    return [dict(r) for r in rows]
+    entries = [dict(r) for r in rows]
+    media_by_post_id = fetch_daily_feed_media_by_post_ids(
+        post_ids=[entry["id"] for entry in entries],
+    )
+
+    for entry in entries:
+        entry["media_items"] = media_by_post_id.get(entry["id"], [])
+
+    return entries
 
 
 def fetch_student_from_parent(*, parent_user_id: int) -> list[dict[str, Any]]:

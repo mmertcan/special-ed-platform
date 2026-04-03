@@ -118,6 +118,9 @@ Assessment date: `2026-04-01`
 - [x] Show loading, empty, and error states for both student selection and feed loading
 
 ### Phase 3 — Single-photo upload MVP
+- [x] Backend upload endpoint exists at `POST /daily-feed/{post_id}/media`
+- [x] Uploaded images are stored on the local filesystem for MVP
+- [x] Daily feed responses include `media_items` per post
 - [ ] Add an optional image picker to the teacher daily post flow
 - [ ] Show a local preview before upload
 - [ ] Add a frontend request path for multipart text + optional image submission
