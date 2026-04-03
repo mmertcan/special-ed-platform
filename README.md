@@ -33,6 +33,21 @@ The backend now allows browser requests from:
 
 You can override that with the `FRONTEND_ORIGINS` environment variable.
 
+## Seeded demo login accounts
+
+First principle:
+- browser login only works if the seeded users have real password hashes
+- the app now repairs older local databases that still contain placeholder seed hashes
+- that means you can test the app in the browser without first creating extra users by hand
+
+Demo credentials:
+
+```text
+Admin   -> admin@example.com   / Pass123456!
+Teacher -> teacher@example.com / Pass123456!
+Parent  -> parent@example.com  / Pass123456!
+```
+
 ## Frontend run
 
 1. Go into the frontend folder.
@@ -65,10 +80,6 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 
 ## What is intentionally not built yet
 
-- actual login form POSTing to `/auth/login`
-- admin users page
-- admin students page
-- admin assignments page
-- teacher students page
-- teacher daily feed page
-- parent feed page content
+- photo upload flow for daily feed posts
+- weekly homework routes and pages
+- schedule/class program routes and pages

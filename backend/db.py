@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import secrets
 import sqlite3
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -9,6 +11,28 @@ from typing import Any, Optional
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = str(BASE_DIR / "app.db")
+PBKDF2_ITERATIONS = 100_000
+SEEDED_DEMO_PASSWORD = "Pass123456!"
+SEEDED_USER_SPECS = [
+    {
+        "role": "admin",
+        "full_name": "Admin User",
+        "email": "admin@example.com",
+        "placeholder_hash": "seeded-admin-password-hash",
+    },
+    {
+        "role": "teacher",
+        "full_name": "Teacher User",
+        "email": "teacher@example.com",
+        "placeholder_hash": "seeded-teacher-password-hash",
+    },
+    {
+        "role": "parent",
+        "full_name": "Parent User",
+        "email": "parent@example.com",
+        "placeholder_hash": "seeded-parent-password-hash",
+    },
+]
 
 
 
@@ -17,6 +41,17 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+def _hash_password_for_storage(password: str) -> str:
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        bytes.fromhex(salt),
+        PBKDF2_ITERATIONS,
+    )
+    return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${salt}${digest.hex()}"
 
 
 
@@ -258,31 +293,18 @@ def _seed_if_empty(conn: sqlite3.Connection) -> None:
             """,
             [
                 (
-                    "admin",
-                    "Admin User",
-                    "admin@example.com",
-                    "seeded-admin-password-hash",
+                    spec["role"],
+                    spec["full_name"],
+                    spec["email"],
+                    _hash_password_for_storage(SEEDED_DEMO_PASSWORD),
                     1,
                     created_at,
-                ),
-                (
-                    "teacher",
-                    "Teacher User",
-                    "teacher@example.com",
-                    "seeded-teacher-password-hash",
-                    1,
-                    created_at,
-                ),
-                (
-                    "parent",
-                    "Parent User",
-                    "parent@example.com",
-                    "seeded-parent-password-hash",
-                    1,
-                    created_at,
-                ),
+                )
+                for spec in SEEDED_USER_SPECS
             ],
         )
+    else:
+        _repair_seeded_user_password_hashes(conn)
 
     # -------------------------
     # students
@@ -439,6 +461,31 @@ def _seed_if_empty(conn: sqlite3.Connection) -> None:
     ).fetchone()["c"]
     if schedule_count == 0:
         pass
+
+
+def _repair_seeded_user_password_hashes(conn: sqlite3.Connection) -> None:
+    """
+    Upgrades older local databases that still contain placeholder seed hashes.
+
+    First principle:
+    - fresh databases get real demo passwords during seed insert
+    - existing local databases may already contain fake placeholder hashes
+    - this repair keeps browser login working without manual DB resets
+    """
+    for spec in SEEDED_USER_SPECS:
+        conn.execute(
+            """
+            UPDATE users
+            SET password_hash = ?
+            WHERE email = ?
+            AND password_hash = ?
+            """,
+            (
+                _hash_password_for_storage(SEEDED_DEMO_PASSWORD),
+                spec["email"],
+                spec["placeholder_hash"],
+            ),
+        )
 
 
 # -------------------------

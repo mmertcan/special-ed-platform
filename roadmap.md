@@ -65,9 +65,9 @@ Assessment date: `2026-04-01`
 - [x] Logout button uses the real `POST /auth/logout` flow
 
 ### Phase 0 — Access and bootstrap
-- [ ] Seeded demo accounts work with the real browser login flow
+- [x] Seeded demo accounts work with the real browser login flow
 - [x] Session restore is implemented through `GET /me`
-- [ ] Normal browser testing is fully independent from manual seeded bearer tokens
+- [x] Normal browser testing is fully independent from manual seeded bearer tokens
 
 ### Phase 1 — Admin setup completion
 - [x] Admin landing page exists
