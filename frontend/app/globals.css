@@ -451,6 +451,58 @@ select {
   padding: 4px 0;
 }
 
+.parent-menu-wrap {
+  position: relative;
+}
+
+.parent-menu-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 10px;
+  min-width: 220px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 22px 46px rgba(54, 66, 102, 0.16);
+}
+
+.parent-menu-label {
+  margin: 0;
+  color: #7c8698;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.parent-menu-name {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.parent-menu-email {
+  margin: 0;
+  color: #637084;
+  font-size: 0.92rem;
+}
+
+.parent-menu-action {
+  border: 0;
+  border-radius: 999px;
+  background: #0454b4;
+  color: #fff;
+  padding: 11px 14px;
+  font: inherit;
+}
+
+.parent-menu-action:disabled {
+  opacity: 0.7;
+}
+
 .parent-student-card,
 .parent-past-card {
   border-radius: 28px;
@@ -755,5 +807,11 @@ select {
   .filter-field,
   .filter-select {
     width: 100%;
+  }
+
+  .parent-menu-panel {
+    left: auto;
+    right: 0;
+    min-width: 200px;
   }
 }

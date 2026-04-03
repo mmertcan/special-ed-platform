@@ -42,7 +42,7 @@ const studentPresentationCycle: StudentPresentation[] = [
 ];
 
 export function ParentFeedPanel() {
-  const { currentUser, token } = useAuth();
+  const { currentUser, logout, token } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,6 +54,11 @@ export function ParentFeedPanel() {
   const [feedErrorMessage, setFeedErrorMessage] = useState<string | null>(null);
   const [isStudentsLoading, setIsStudentsLoading] = useState(true);
   const [isFeedLoading, setIsFeedLoading] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutErrorMessage, setLogoutErrorMessage] = useState<string | null>(null);
+  const [studentsReloadNonce, setStudentsReloadNonce] = useState(0);
+  const [feedReloadNonce, setFeedReloadNonce] = useState(0);
   const selectedStudentId = parsePositiveInteger(searchParams.get("student_id"));
   const selectedStudent =
     students.find((student) => student.id === selectedStudentId) ?? null;
@@ -102,7 +107,7 @@ export function ParentFeedPanel() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [studentsReloadNonce, token]);
 
   useEffect(() => {
     if (isStudentsLoading || studentsErrorMessage || students.length === 0) {
@@ -188,7 +193,7 @@ export function ParentFeedPanel() {
     return () => {
       cancelled = true;
     };
-  }, [selectedStudent, token]);
+  }, [feedReloadNonce, selectedStudent, token]);
 
   const sessions = useMemo(() => groupEntriesByDate(entries), [entries]);
   const latestSession = sessions[0] ?? null;
@@ -202,6 +207,30 @@ export function ParentFeedPanel() {
     : null;
   const headerInitials = getInitials(currentUser?.full_name ?? "Veli");
 
+  const retryStudentsLoad = () => {
+    setStudentsReloadNonce((currentValue) => currentValue + 1);
+  };
+
+  const retryFeedLoad = () => {
+    setFeedReloadNonce((currentValue) => currentValue + 1);
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    setLogoutErrorMessage(null);
+
+    try {
+      await logout();
+      router.replace("/login");
+    } catch {
+      setLogoutErrorMessage("Çıkış sırasında bir sorun oldu. Oturum yine de kapatıldı.");
+      router.replace("/login");
+    } finally {
+      setIsLoggingOut(false);
+      setIsMenuOpen(false);
+    }
+  };
+
   return (
     <main className="parent-feed-shell">
       <div className="parent-feed-mobile">
@@ -213,9 +242,42 @@ export function ParentFeedPanel() {
               <p className="parent-subtitle">Okuldaki oturum paylaşımları</p>
             </div>
           </div>
-          <button className="parent-menu-button" type="button" aria-label="Menü">
-            •••
-          </button>
+          <div className="parent-menu-wrap">
+            <button
+              className="parent-menu-button"
+              type="button"
+              aria-label="Menü"
+              aria-expanded={isMenuOpen}
+              onClick={() => {
+                setIsMenuOpen((currentValue) => !currentValue);
+                setLogoutErrorMessage(null);
+              }}
+            >
+              •••
+            </button>
+            {isMenuOpen ? (
+              <div className="parent-menu-panel">
+                <p className="parent-menu-label">Hesap</p>
+                <p className="parent-menu-name">{currentUser?.full_name ?? "Veli"}</p>
+                <p className="parent-menu-email">
+                  {currentUser?.email ?? "Hesap bilgisi yok"}
+                </p>
+                <button
+                  className="parent-menu-action"
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  {isLoggingOut ? "Çıkış yapılıyor..." : "Çıkış yap"}
+                </button>
+                {logoutErrorMessage ? (
+                  <p className="form-error" role="alert">
+                    {logoutErrorMessage}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </header>
 
         <section className="parent-student-card">
@@ -226,9 +288,18 @@ export function ParentFeedPanel() {
           ) : null}
 
           {studentsErrorMessage ? (
-            <p className="form-error" role="alert">
-              {studentsErrorMessage}
-            </p>
+            <div className="stack">
+              <p className="form-error" role="alert">
+                {studentsErrorMessage}
+              </p>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={retryStudentsLoad}
+              >
+                Tekrar dene
+              </button>
+            </div>
           ) : null}
 
           {!isStudentsLoading && !studentsErrorMessage && students.length === 0 ? (
@@ -319,9 +390,18 @@ export function ParentFeedPanel() {
           ) : null}
 
           {feedErrorMessage ? (
-            <p className="form-error" role="alert">
-              {feedErrorMessage}
-            </p>
+            <div className="stack">
+              <p className="form-error" role="alert">
+                {feedErrorMessage}
+              </p>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={retryFeedLoad}
+              >
+                Tekrar dene
+              </button>
+            </div>
           ) : null}
 
           {!selectedStudent && !isStudentsLoading && !studentsErrorMessage ? (
@@ -392,7 +472,14 @@ export function ParentFeedPanel() {
           <button className="parent-nav-item" type="button">
             <span>Geçmiş</span>
           </button>
-          <button className="parent-nav-item" type="button">
+          <button
+            className="parent-nav-item"
+            type="button"
+            onClick={() => {
+              setIsMenuOpen(true);
+              setLogoutErrorMessage(null);
+            }}
+          >
             <span>Profil</span>
           </button>
         </nav>
