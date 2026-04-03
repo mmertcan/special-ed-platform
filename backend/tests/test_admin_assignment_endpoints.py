@@ -760,6 +760,68 @@ def test_login_returns_session_for_valid_credentials(client: TestClient):
     assert row["expires_at_utc"] == payload["expires_at_utc"]
 
 
+@pytest.mark.parametrize(
+    ("email", "expected_role"),
+    [
+        ("admin@example.com", "admin"),
+        ("teacher@example.com", "teacher"),
+        ("parent@example.com", "parent"),
+    ],
+)
+def test_seeded_demo_accounts_can_log_in_from_browser_flow(
+    client: TestClient,
+    email: str,
+    expected_role: str,
+):
+    response = client.post(
+        "/auth/login",
+        json={"email": email, "password": db.SEEDED_DEMO_PASSWORD},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["user"]["email"] == email
+    assert payload["user"]["role"] == expected_role
+
+
+def test_init_db_repairs_legacy_seeded_password_hashes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    test_db_path = tmp_path / "repair_seeded_passwords.db"
+    monkeypatch.setattr(db, "DB_PATH", str(test_db_path))
+
+    db.init_db()
+
+    conn = db.get_db_connection()
+    try:
+        conn.execute(
+            """
+            UPDATE users
+            SET password_hash = 'seeded-admin-password-hash'
+            WHERE email = 'admin@example.com'
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    db.init_db()
+
+    with TestClient(main.app) as test_client:
+        response = test_client.post(
+            "/auth/login",
+            json={
+                "email": "admin@example.com",
+                "password": db.SEEDED_DEMO_PASSWORD,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["user"]["email"] == "admin@example.com"
+
+
 def test_login_missing_email_returns_400(client: TestClient):
     response = client.post(
         "/auth/login",
