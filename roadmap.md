@@ -129,7 +129,7 @@ Assessment date: `2026-04-01`
 ### Phase 4 — Frontend hardening and verification
 - [x] Admin setup flows already show loading, success, and error states
 - [ ] Teacher flow has complete loading, empty, success, and error states
-- [ ] Parent flow has complete loading, empty, success, and error states
+- [x] Parent flow has complete loading, empty, success, and error states
 - [ ] Verify teacher users only see their assigned students
 - [ ] Verify parent users only see their linked children
 - [ ] Verify unauthorized roles are redirected away from protected pages
