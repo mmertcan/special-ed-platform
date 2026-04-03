@@ -6,7 +6,7 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { ApiError, apiRequest } from "../lib/api";
+import { ApiError, apiRequest, buildApiUrl } from "../lib/api";
 import type {
   DailyFeedEntry,
   DailyFeedResponse,
@@ -420,14 +420,56 @@ export function ParentFeedPanel() {
                     <div className="parent-update-art">
                       <span className="parent-update-badge">ETKİNLİK ANI</span>
                     </div>
-                    <p className="parent-update-quote">
-                      "{entry.body}"
-                    </p>
+                    <div className="parent-update-content">
+                      <p className="parent-update-quote">
+                        "{entry.body}"
+                      </p>
+                      {entry.media_items && entry.media_items.length > 0 ? (
+                        <div className="parent-update-media-list">
+                          {entry.media_items.map((mediaItem) => (
+                            <a
+                              key={mediaItem.id}
+                              href={buildApiUrl(`/uploads/${mediaItem.storage_key}`)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="parent-update-media-link"
+                            >
+                              <img
+                                className="parent-update-media-image"
+                                src={buildApiUrl(`/uploads/${mediaItem.storage_key}`)}
+                                alt={`${selectedStudent?.full_name ?? "Öğrenci"} oturum görseli`}
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </article>
                 ) : (
                   <article className="parent-update-note" key={entry.id}>
                     <div className="parent-update-check">OK</div>
-                    <p>{entry.body}</p>
+                    <div className="parent-update-note-copy">
+                      <p>{entry.body}</p>
+                      {entry.media_items && entry.media_items.length > 0 ? (
+                        <div className="parent-update-media-list">
+                          {entry.media_items.map((mediaItem) => (
+                            <a
+                              key={mediaItem.id}
+                              href={buildApiUrl(`/uploads/${mediaItem.storage_key}`)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="parent-update-media-link"
+                            >
+                              <img
+                                className="parent-update-media-image"
+                                src={buildApiUrl(`/uploads/${mediaItem.storage_key}`)}
+                                alt={`${selectedStudent?.full_name ?? "Öğrenci"} oturum görseli`}
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </article>
                 ),
               )}

@@ -722,6 +722,12 @@ select {
   font-style: italic;
 }
 
+.parent-update-content {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 18px;
+}
+
 .parent-update-note {
   display: flex;
   align-items: flex-start;
@@ -735,6 +741,12 @@ select {
   line-height: 1.7;
 }
 
+.parent-update-note-copy {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
 .parent-update-check {
   width: 36px;
   height: 36px;
@@ -742,6 +754,31 @@ select {
   background: #edf3ff;
   color: #0454b4;
   font-size: 0.78rem;
+}
+
+.parent-update-media-list {
+  display: grid;
+  gap: 12px;
+  padding: 0 18px;
+}
+
+.parent-update-note-copy .parent-update-media-list {
+  padding: 0;
+}
+
+.parent-update-media-link {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.parent-update-media-image {
+  display: block;
+  width: min(280px, 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(4, 84, 180, 0.08);
+  box-shadow: 0 14px 30px rgba(54, 66, 102, 0.12);
+  object-fit: cover;
 }
 
 .parent-past-list {

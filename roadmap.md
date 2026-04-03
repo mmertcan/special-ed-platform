@@ -126,8 +126,8 @@ Assessment date: `2026-04-01`
 - [x] Add a frontend request path for multipart text + optional image submission
 - [x] Extend frontend feed types so posts can include media items
 - [x] Render uploaded images in teacher feed history
-- [ ] Render uploaded images in parent feed entries
-- [ ] Show frontend validation messages for unsupported file types and oversized files
+- [x] Render uploaded images in parent feed entries
+- [x] Show frontend validation messages for unsupported file types and oversized files
 
 ### Phase 4 — Frontend hardening and verification
 - [x] Admin setup flows already show loading, success, and error states
@@ -145,7 +145,7 @@ Assessment date: `2026-04-01`
 - [x] Teacher assigned-student list is implemented
 - [x] Teacher daily feed publish page is implemented
 - [x] Parent feed page is implemented
-- [ ] Parent photo rendering is not implemented yet
+- [x] Photo upload UI is implemented for teachers and parents
 - [x] Shared frontend feed types are implemented
 
 ### Recommended frontend build order from here
