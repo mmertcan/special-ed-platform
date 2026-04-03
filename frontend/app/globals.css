@@ -728,6 +728,14 @@ select {
   padding-bottom: 18px;
 }
 
+.parent-update-author {
+  margin: 0;
+  padding: 0 18px;
+  color: #0454b4;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .parent-update-note {
   display: flex;
   align-items: flex-start;
@@ -745,6 +753,10 @@ select {
   display: grid;
   gap: 14px;
   min-width: 0;
+}
+
+.parent-update-note-copy .parent-update-author {
+  padding: 0;
 }
 
 .parent-update-check {

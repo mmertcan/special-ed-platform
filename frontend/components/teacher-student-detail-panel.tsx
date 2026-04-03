@@ -48,6 +48,8 @@ export function TeacherStudentDetailPanel() {
   const [isStudentsLoading, setIsStudentsLoading] = useState(true);
   const [isFeedLoading, setIsFeedLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [studentsReloadNonce, setStudentsReloadNonce] = useState(0);
+  const [feedReloadNonce, setFeedReloadNonce] = useState(0);
   const selectedStudentId = parsePositiveInteger(params.studentId);
   const selectedStudent =
     students.find((student) => student.id === selectedStudentId) ?? null;
@@ -96,7 +98,7 @@ export function TeacherStudentDetailPanel() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [studentsReloadNonce, token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -146,7 +148,7 @@ export function TeacherStudentDetailPanel() {
     return () => {
       cancelled = true;
     };
-  }, [selectedStudent, token]);
+  }, [feedReloadNonce, selectedStudent, token]);
 
   useEffect(() => {
     setComposerDraft("");
@@ -320,9 +322,18 @@ export function TeacherStudentDetailPanel() {
           ) : null}
 
           {studentsErrorMessage ? (
-            <p className="form-error" role="alert">
-              {studentsErrorMessage}
-            </p>
+            <div className="stack">
+              <p className="form-error" role="alert">
+                {studentsErrorMessage}
+              </p>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={() => setStudentsReloadNonce((currentValue) => currentValue + 1)}
+              >
+                Tekrar dene
+              </button>
+            </div>
           ) : null}
 
           {!isStudentsLoading && !studentsErrorMessage && !selectedStudentId ? (
@@ -459,9 +470,18 @@ export function TeacherStudentDetailPanel() {
           ) : null}
 
           {feedErrorMessage ? (
-            <p className="form-error" role="alert">
-              {feedErrorMessage}
-            </p>
+            <div className="stack">
+              <p className="form-error" role="alert">
+                {feedErrorMessage}
+              </p>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={() => setFeedReloadNonce((currentValue) => currentValue + 1)}
+              >
+                Tekrar dene
+              </button>
+            </div>
           ) : null}
 
           {!selectedStudent ? (

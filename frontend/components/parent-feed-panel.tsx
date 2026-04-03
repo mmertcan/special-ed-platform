@@ -207,9 +207,9 @@ export function ParentFeedPanel() {
   const latestUpdates = isLatestSessionExpanded
     ? [...latestVisibleUpdates, ...latestHiddenUpdates]
     : latestVisibleUpdates;
-  const latestTeacherName = latestSession
-    ? getLatestTeacherName(latestSession)
-    : null;
+  const latestTeacherNames = latestSession
+    ? getUniqueTeacherNames(latestSession)
+    : [];
   const headerInitials = getInitials(currentUser?.full_name ?? "Veli");
 
   useEffect(() => {
@@ -384,8 +384,16 @@ export function ParentFeedPanel() {
               </article>
               <article className="parent-stat-card">
                 <div className="parent-stat-icon">Ö</div>
-                <strong>{latestTeacherName ?? "Öğretmen bilgisi yok"}</strong>
-                <span>Oturum öğretmeni</span>
+                <strong>
+                  {latestTeacherNames.length > 0
+                    ? latestTeacherNames.join(", ")
+                    : "Öğretmen bilgisi yok"}
+                </strong>
+                <span>
+                  {latestTeacherNames.length > 1
+                    ? "Oturum öğretmenleri"
+                    : "Oturum öğretmeni"}
+                </span>
               </article>
             </div>
           ) : null}
@@ -430,6 +438,9 @@ export function ParentFeedPanel() {
                       <span className="parent-update-badge">ETKİNLİK ANI</span>
                     </div>
                     <div className="parent-update-content">
+                      <p className="parent-update-author">
+                        {getTeacherLabel(entry)}
+                      </p>
                       <p className="parent-update-quote">
                         "{entry.body}"
                       </p>
@@ -458,6 +469,9 @@ export function ParentFeedPanel() {
                   <article className="parent-update-note" key={entry.id}>
                     <div className="parent-update-check">OK</div>
                     <div className="parent-update-note-copy">
+                      <p className="parent-update-author">
+                        {getTeacherLabel(entry)}
+                      </p>
                       <p>{entry.body}</p>
                       {entry.media_items && entry.media_items.length > 0 ? (
                         <div className="parent-update-media-list">
@@ -613,9 +627,20 @@ function getStudentPresentation(studentId: number): StudentPresentation {
   return studentPresentationCycle[(studentId - 1) % studentPresentationCycle.length];
 }
 
-function getLatestTeacherName(session: SessionGroup) {
-  const latestNamedEntry = session.entries.find((entry) => entry.author_full_name);
-  return latestNamedEntry?.author_full_name ?? null;
+function getUniqueTeacherNames(session: SessionGroup) {
+  return [...new Set(
+    session.entries
+      .map((entry) => entry.author_full_name?.trim())
+      .filter((value): value is string => Boolean(value)),
+  )];
+}
+
+function getTeacherLabel(entry: DailyFeedEntry) {
+  if (entry.author_full_name?.trim()) {
+    return `Öğretmen: ${entry.author_full_name}`;
+  }
+
+  return "Öğretmen bilgisi yok";
 }
 
 function buildPastSessionSummary(session: SessionGroup) {
