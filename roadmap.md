@@ -121,11 +121,11 @@ Assessment date: `2026-04-01`
 - [x] Backend upload endpoint exists at `POST /daily-feed/{post_id}/media`
 - [x] Uploaded images are stored on the local filesystem for MVP
 - [x] Daily feed responses include `media_items` per post
-- [ ] Add an optional image picker to the teacher daily post flow
-- [ ] Show a local preview before upload
-- [ ] Add a frontend request path for multipart text + optional image submission
-- [ ] Extend frontend feed types so posts can include media items
-- [ ] Render uploaded images in teacher feed history
+- [x] Add an optional image picker to the teacher daily post flow
+- [x] Show a local preview before upload
+- [x] Add a frontend request path for multipart text + optional image submission
+- [x] Extend frontend feed types so posts can include media items
+- [x] Render uploaded images in teacher feed history
 - [ ] Render uploaded images in parent feed entries
 - [ ] Show frontend validation messages for unsupported file types and oversized files
 
@@ -145,7 +145,7 @@ Assessment date: `2026-04-01`
 - [x] Teacher assigned-student list is implemented
 - [x] Teacher daily feed publish page is implemented
 - [x] Parent feed page is implemented
-- [ ] Photo upload UI is not implemented yet
+- [ ] Parent photo rendering is not implemented yet
 - [x] Shared frontend feed types are implemented
 
 ### Recommended frontend build order from here

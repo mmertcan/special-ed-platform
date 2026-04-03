@@ -7,6 +7,12 @@ type ApiRequestOptions = {
   body?: unknown;
 };
 
+type UploadFileOptions = {
+  token?: string | null;
+  fieldName?: string;
+  file: File;
+};
+
 export class ApiError extends Error {
   status: number;
   payload: unknown;
@@ -54,6 +60,44 @@ export async function apiRequest<T>(
   }
 
   return payload as T;
+}
+
+export async function uploadFileRequest<T>(
+  path: string,
+  options: UploadFileOptions,
+): Promise<T> {
+  const { token, file, fieldName = "file" } = options;
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const formData = new FormData();
+  formData.set(fieldName, file);
+
+  const response = await fetch(buildApiUrl(path), {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  const text = await response.text();
+  const payload = parsePayload(text);
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      extractErrorMessage(payload),
+      payload,
+    );
+  }
+
+  return payload as T;
+}
+
+export function buildApiUrl(path: string) {
+  return `${API_BASE_URL}${path}`;
 }
 
 function parsePayload(text: string) {

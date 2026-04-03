@@ -169,3 +169,8 @@ export type DailyFeedCreateResponse = {
   ok: true;
   post: DailyFeedEntry;
 };
+
+export type DailyFeedMediaUploadResponse = {
+  ok: true;
+  media: DailyFeedMediaItem;
+};
