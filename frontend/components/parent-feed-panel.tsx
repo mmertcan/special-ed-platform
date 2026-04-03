@@ -59,6 +59,7 @@ export function ParentFeedPanel() {
   const [logoutErrorMessage, setLogoutErrorMessage] = useState<string | null>(null);
   const [studentsReloadNonce, setStudentsReloadNonce] = useState(0);
   const [feedReloadNonce, setFeedReloadNonce] = useState(0);
+  const [isLatestSessionExpanded, setIsLatestSessionExpanded] = useState(false);
   const selectedStudentId = parsePositiveInteger(searchParams.get("student_id"));
   const selectedStudent =
     students.find((student) => student.id === selectedStudentId) ?? null;
@@ -201,11 +202,19 @@ export function ParentFeedPanel() {
   const studentPresentation = selectedStudent
     ? getStudentPresentation(selectedStudent.id)
     : null;
-  const latestUpdates = latestSession?.entries.slice(0, 2) ?? [];
+  const latestVisibleUpdates = latestSession?.entries.slice(0, 3) ?? [];
+  const latestHiddenUpdates = latestSession?.entries.slice(3) ?? [];
+  const latestUpdates = isLatestSessionExpanded
+    ? [...latestVisibleUpdates, ...latestHiddenUpdates]
+    : latestVisibleUpdates;
   const latestTeacherName = latestSession
     ? getLatestTeacherName(latestSession)
     : null;
   const headerInitials = getInitials(currentUser?.full_name ?? "Veli");
+
+  useEffect(() => {
+    setIsLatestSessionExpanded(false);
+  }, [selectedStudentId, latestSession?.dateKey]);
 
   const retryStudentsLoad = () => {
     setStudentsReloadNonce((currentValue) => currentValue + 1);
@@ -473,6 +482,27 @@ export function ParentFeedPanel() {
                   </article>
                 ),
               )}
+
+              {latestHiddenUpdates.length > 0 ? (
+                <div className="parent-more-updates">
+                  <button
+                    className="parent-more-button"
+                    type="button"
+                    onClick={() =>
+                      setIsLatestSessionExpanded((currentValue) => !currentValue)
+                    }
+                  >
+                    {isLatestSessionExpanded
+                      ? "Daha az paylaşım göster"
+                      : `${latestHiddenUpdates.length} paylaşımı daha göster`}
+                  </button>
+                  <p className="parent-more-note">
+                    {isLatestSessionExpanded
+                      ? "Bu oturumdaki tüm paylaşımlar açık."
+                      : "Aynı gün içindeki daha eski paylaşımları ve fotoğrafları görmek için açın."}
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </section>
