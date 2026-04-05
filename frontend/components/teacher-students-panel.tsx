@@ -13,6 +13,7 @@ export function TeacherStudentsPanel() {
   const [students, setStudents] = useState<ViewerStudent[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +59,7 @@ export function TeacherStudentsPanel() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [reloadNonce, token]);
 
   return (
     <main className="app-shell">
@@ -96,9 +97,18 @@ export function TeacherStudentsPanel() {
           ) : null}
 
           {errorMessage ? (
-            <p className="form-error" role="alert">
-              {errorMessage}
-            </p>
+            <div className="stack">
+              <p className="form-error" role="alert">
+                {errorMessage}
+              </p>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={() => setReloadNonce((currentValue) => currentValue + 1)}
+              >
+                Tekrar dene
+              </button>
+            </div>
           ) : null}
 
           {!isLoading && !errorMessage && students.length === 0 ? (
